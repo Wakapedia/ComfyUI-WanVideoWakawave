@@ -6,6 +6,8 @@ Advanced LoRA management and prompt building tools for WanVideo in ComfyUI.
 - 🌊 **Wakawave LoRA Loader** - Dynamic LoRA management with unlimited add/remove
 - 🌊 **Wakawave Prompt Builder** - Advanced prompt creation with segment support
 
+![Wakawave LoRA Loader](images/Wakawave%20LoRA%20Loader.png)
+
 ---
 
 ## ✨ Features
@@ -64,6 +66,8 @@ git clone https://github.com/Wakapedia/ComfyUI-WanVideoWakawave.git
 5. Enable/disable with checkboxes
 6. Connect output to `WanVideo Set LoRAs` node
 
+![Add LoRA Interface](images/Wakawave%20Add%20Lora.png)
+
 **Save/Load Presets:**
 - Click `💾 Save` to save current LoRA combination
 - Click `📂 Load` to load a saved preset
@@ -82,6 +86,8 @@ git clone https://github.com/Wakapedia/ComfyUI-WanVideoWakawave.git
 3. Optional: Add weights like `prompt text, weight: 1.2`
 4. Click `+ Add` for new prompt lines
 5. Connect output to your WanVideo sampler
+
+![Prompt Builder Interface](images/Wakawave%20Prompt%20Builder.png)
 
 **Prompt Format:**
 ```
