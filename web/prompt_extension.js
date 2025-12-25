@@ -55,10 +55,11 @@ app.registerExtension({
             const buttonContainer = document.createElement("div");
             buttonContainer.style.cssText = "display: flex; gap: 4px; padding: 4px; flex-wrap: wrap;";
 
-            // Add Prompt button
-            const addBtn = this.addWidget("button", "+ Add", null, () => {
+            // Add Prompt Line button - adds a new line for typing more prompts
+            const addBtn = this.addWidget("button", "+ Add Line", null, () => {
                 const current = node.promptWidget.value;
-                node.promptWidget.value = current + (current ? "\n" : "");
+                // Always add a newline (if text exists, add blank line between)
+                node.promptWidget.value = current + (current && !current.endsWith("\n") ? "\n\n" : "\n");
                 node.updateBundle();
             });
             addBtn.serialize = false;
