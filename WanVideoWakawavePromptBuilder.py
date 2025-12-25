@@ -22,85 +22,117 @@ class WanVideoWakawavePromptBuilder:
         return {
             "required": {},
             "optional": {
-                "prev_prompt": ("STRING", {"forceInput": True}),
+                "prev_positive": ("STRING", {"forceInput": True}),
+                "prev_negative": ("STRING", {"forceInput": True}),
                 "separator": (["none", "comma", "newline", "space", "pipe", "double_slash"], {"default": "none"}),
                 "use_weights": ("BOOLEAN", {"default": True}),
                 "segment_mode": ("BOOLEAN", {"default": False, "tooltip": "Enable segment-based prompting for different video segments"}),
                 "segment_number": ("INT", {"default": 0, "min": 0, "max": 100, "step": 1, "tooltip": "Current segment number (0-based)"}),
             },
             "hidden": {
-                "prompt_bundle": "STRING",  # JSON from Wakawave UI - hidden from display
+                "positive_bundle": "STRING",  # JSON from Wakawave UI - positive prompts
+                "negative_bundle": "STRING",  # JSON from Wakawave UI - negative prompts
             }
         }
 
-    RETURN_TYPES = ("STRING",)
-    RETURN_NAMES = ("prompt",)
+    RETURN_TYPES = ("STRING", "STRING")
+    RETURN_NAMES = ("positive", "negative")
     FUNCTION = "build_prompt"
     CATEGORY = "WanVideo/Prompts"
     DESCRIPTION = "Wakawave-style prompt builder with save/load presets and segment control"
 
     def build_prompt(
         self,
-        prev_prompt: Union[str, None] = None,
-        separator: str = "comma",
+        prev_positive: Union[str, None] = None,
+        prev_negative: Union[str, None] = None,
+        separator: str = "none",
         use_weights: bool = True,
         segment_mode: bool = False,
         segment_number: int = 0,
-        prompt_bundle: Union[str, None] = None,
+        positive_bundle: Union[str, None] = None,
+        negative_bundle: Union[str, None] = None,
         **kwargs
     ):
         """
-        Build final prompt from Wakawave UI bundle
+        Build final positive and negative prompts from Wakawave UI bundles
 
         Args:
-            prev_prompt: Previous prompt to prepend
-            separator: How to join prompts (comma, newline, space, pipe, double_slash, none)
+            prev_positive: Previous positive prompt to prepend
+            prev_negative: Previous negative prompt to prepend
+            separator: How to join prompts (none, comma, newline, space, pipe, double_slash)
             use_weights: Whether to apply weights like (text:1.2)
             segment_mode: Enable segment-based prompting
             segment_number: Current segment number (for segment mode)
-            prompt_bundle: JSON string from Wakawave UI containing prompt configs
+            positive_bundle: JSON string from Wakawave UI containing positive prompt configs
+            negative_bundle: JSON string from Wakawave UI containing negative prompt configs
         """
 
         print("\n" + "="*75)
         print("🌊 WanVideo Wakawave Prompt Builder")
         print("="*75)
 
+        # Build positive prompt
+        print("\n📝 Building POSITIVE prompt:")
+        positive_prompt = self._build_single_prompt(
+            positive_bundle, prev_positive, separator, use_weights, segment_mode, segment_number, "positive"
+        )
+
+        # Build negative prompt
+        print("\n📝 Building NEGATIVE prompt:")
+        negative_prompt = self._build_single_prompt(
+            negative_bundle, prev_negative, separator, use_weights, segment_mode, segment_number, "negative"
+        )
+
+        print("="*75 + "\n")
+
+        return (positive_prompt, negative_prompt)
+
+    def _build_single_prompt(
+        self,
+        prompt_bundle: Union[str, None],
+        prev_prompt: Union[str, None],
+        separator: str,
+        use_weights: bool,
+        segment_mode: bool,
+        segment_number: int,
+        prompt_type: str  # "positive" or "negative"
+    ) -> str:
+        """Helper method to build a single prompt (positive or negative)"""
+
         # Start with previous prompt if provided
         prompt_parts = []
         if prev_prompt:
             prompt_parts.append(prev_prompt)
-            print(f"📝 Previous prompt: {prev_prompt[:60]}...")
+            print(f"  📌 Previous {prompt_type}: {prev_prompt[:50]}...")
 
         # Parse the bundle from Wakawave UI
         if not prompt_bundle or prompt_bundle.strip() == "":
-            print("⚠️  No prompt bundle received from UI")
-            print("="*75)
-            return (prev_prompt or "",)
+            print(f"  ⚠️  No {prompt_type} bundle received from UI")
+            return prev_prompt or ""
 
         try:
             prompt_configs = json.loads(prompt_bundle)
-            print(f"📦 Parsed {len(prompt_configs)} prompt entries from bundle")
+            print(f"  📦 Parsed {len(prompt_configs)} {prompt_type} entries from bundle")
         except json.JSONDecodeError as e:
-            print(f"❌ Failed to parse prompt bundle: {e}")
-            print("="*75)
-            return (prev_prompt or "",)
+            print(f"  ❌ Failed to parse {prompt_type} bundle: {e}")
+            return prev_prompt or ""
 
         # Segment mode handling
         if segment_mode:
-            print(f"🎬 Segment mode enabled - Using segment {segment_number}")
+            print(f"  🎬 Segment mode enabled - Using segment {segment_number}")
             segment_prompts = self._parse_segments(prompt_configs)
 
             if segment_number in segment_prompts:
                 selected_configs = segment_prompts[segment_number]
-                print(f"✅ Found {len(selected_configs)} prompts for segment {segment_number}")
+                print(f"  ✅ Found {len(selected_configs)} prompts for segment {segment_number}")
             else:
                 # Fallback to highest segment if requested segment doesn't exist
                 max_segment = max(segment_prompts.keys()) if segment_prompts else 0
                 if max_segment >= 0 and segment_number > max_segment:
-                    print(f"⚠️  Segment {segment_number} not found, using segment {max_segment}")
+                    print(f"  ⚠️  Segment {segment_number} not found, using segment {max_segment}")
                     selected_configs = segment_prompts.get(max_segment, [])
                 else:
-                    print(f"⚠️  No prompts found for segment {segment_number}")
+                    print(f"  ⚠️  No prompts found for segment {segment_number}")
                     selected_configs = []
 
             prompt_configs = selected_configs
@@ -129,11 +161,9 @@ class WanVideoWakawavePromptBuilder:
 
             # Print with truncation for long prompts
             display_text = text[:50] + "..." if len(text) > 50 else text
-            print(f"  ✅ {enabled_count}. {display_text:50s} @ {weight:.2f}")
+            print(f"    ✅ {enabled_count}. {display_text:48s} @ {weight:.2f}")
 
-        print("="*75)
-        print(f"✅ Total enabled: {enabled_count} prompts")
-        print("="*75)
+        print(f"  ✅ Total enabled: {enabled_count} {prompt_type} prompts")
 
         # Join prompts based on separator
         if separator == "comma":
@@ -151,11 +181,9 @@ class WanVideoWakawavePromptBuilder:
 
         final_prompt = sep.join(prompt_parts)
 
-        print(f"\n📤 Final prompt ({len(final_prompt)} chars):")
-        print(f"{final_prompt[:200]}...")
-        print("\n")
+        print(f"  📤 Final {prompt_type} ({len(final_prompt)} chars): {final_prompt[:100]}...")
 
-        return (final_prompt,)
+        return final_prompt
 
     def _parse_segments(self, prompt_configs: List[Dict]) -> Dict[int, List[Dict]]:
         """

@@ -36,31 +36,51 @@ app.registerExtension({
             const result = onNodeCreated?.apply(this, arguments);
             const node = this;
 
-            // Create main prompt editor widget - DON'T serialize it (use prompt_bundle instead)
-            const promptWidget = ComfyWidgets.STRING(this, "prompts", ["STRING", {
+            // Create POSITIVE prompt section
+            const positiveLabel = this.addWidget("text", "━━━━ POSITIVE ━━━━", "", () => {});
+            positiveLabel.serialize = false;
+            positiveLabel.computeSize = () => [this.size[0] - 20, 20];
+
+            const positiveWidget = ComfyWidgets.STRING(this, "positive_prompts", ["STRING", {
                 multiline: true,
                 default: ""
             }], app);
+            node.positiveWidget = positiveWidget.widget;
+            node.positiveWidget.serialize = false; // Don't serialize the text widget
+            node.positiveWidget.computeSize = (width) => [width, Math.max(100, node.positiveWidget.inputEl?.scrollHeight || 100)];
 
-            node.promptWidget = promptWidget.widget;
-            // CRITICAL: Don't serialize the prompts widget to avoid widget index conflicts
-            node.promptWidget.serialize = false;
+            // Create positive_bundle widget (hidden, sends data to Python)
+            const positiveBundleWidget = this.addWidget("text", "positive_bundle", "[]", () => {});
+            positiveBundleWidget.serialize = true;
+            positiveBundleWidget.computeSize = () => [0, -4]; // Hide from display
+            node.positiveBundleWidget = positiveBundleWidget;
 
-            // Create the prompt_bundle widget manually (hidden inputs don't auto-create widgets)
-            const bundleWidget = this.addWidget("text", "prompt_bundle", "", () => {});
-            bundleWidget.serialize = true;  // This one DOES serialize (sends data to Python)
-            node.bundleWidget = bundleWidget;
+            // Create NEGATIVE prompt section
+            const negativeLabel = this.addWidget("text", "━━━━ NEGATIVE ━━━━", "", () => {});
+            negativeLabel.serialize = false;
+            negativeLabel.computeSize = () => [this.size[0] - 20, 20];
 
-            // Create button row
-            const buttonContainer = document.createElement("div");
-            buttonContainer.style.cssText = "display: flex; gap: 4px; padding: 4px; flex-wrap: wrap;";
+            const negativeWidget = ComfyWidgets.STRING(this, "negative_prompts", ["STRING", {
+                multiline: true,
+                default: ""
+            }], app);
+            node.negativeWidget = negativeWidget.widget;
+            node.negativeWidget.serialize = false; // Don't serialize the text widget
+            node.negativeWidget.computeSize = (width) => [width, Math.max(100, node.negativeWidget.inputEl?.scrollHeight || 100)];
 
-            // Add Prompt Line button - adds a new line for typing more prompts
+            // Create negative_bundle widget (hidden, sends data to Python)
+            const negativeBundleWidget = this.addWidget("text", "negative_bundle", "[]", () => {});
+            negativeBundleWidget.serialize = true;
+            negativeBundleWidget.computeSize = () => [0, -4]; // Hide from display
+            node.negativeBundleWidget = negativeBundleWidget;
+
+            // Add Line button
             const addBtn = this.addWidget("button", "+ Add Line", null, () => {
-                const current = node.promptWidget.value;
-                // Always add a newline (if text exists, add blank line between)
-                node.promptWidget.value = current + (current && !current.endsWith("\n") ? "\n\n" : "\n");
-                node.updateBundle();
+                // Add line to whichever text box has focus, or positive by default
+                const activeWidget = document.activeElement === node.negativeWidget.inputEl ? node.negativeWidget : node.positiveWidget;
+                const current = activeWidget.value;
+                activeWidget.value = current + (current && !current.endsWith("\n") ? "\n\n" : "\n");
+                node.updateBundles();
             });
             addBtn.serialize = false;
 
@@ -70,7 +90,10 @@ app.registerExtension({
                 if (!name) return;
 
                 const presets = loadPresets();
-                presets[name] = node.promptWidget.value;
+                presets[name] = {
+                    positive: node.positiveWidget.value,
+                    negative: node.negativeWidget.value
+                };
                 savePresets(presets);
                 alert(`Preset "${name}" saved!`);
             });
@@ -87,7 +110,7 @@ app.registerExtension({
                 }
 
                 const list = names.map((n, i) => `${i + 1}. ${n}`).join("\n");
-                const choice = prompt(`Choose preset (enter name):\n\n${list}`);
+                const choice = prompt(`Choose preset (enter name or number):\n\n${list}`);
 
                 if (!choice) return;
 
@@ -101,8 +124,16 @@ app.registerExtension({
                 }
 
                 if (presets[selectedName]) {
-                    node.promptWidget.value = presets[selectedName];
-                    node.updateBundle();
+                    const preset = presets[selectedName];
+                    // Handle both old single-prompt presets and new dual-prompt presets
+                    if (typeof preset === 'string') {
+                        node.positiveWidget.value = preset;
+                        node.negativeWidget.value = "";
+                    } else {
+                        node.positiveWidget.value = preset.positive || "";
+                        node.negativeWidget.value = preset.negative || "";
+                    }
+                    node.updateBundles();
                     alert(`Preset "${selectedName}" loaded!`);
                 } else {
                     alert("Preset not found!");
@@ -121,7 +152,7 @@ app.registerExtension({
                 }
 
                 const list = names.map((n, i) => `${i + 1}. ${n}`).join("\n");
-                const choice = prompt(`Delete preset (enter name):\n\n${list}`);
+                const choice = prompt(`Delete preset (enter name or number):\n\n${list}`);
 
                 if (!choice) return;
 
@@ -143,13 +174,12 @@ app.registerExtension({
             });
             deleteBtn.serialize = false;
 
-            // Update bundle when prompt changes
-            node.updateBundle = function() {
-                const text = node.promptWidget.value;
-                const lines = text.split('\n').filter(l => l.trim());
-
-                const prompts = lines.map(line => {
-                    // Parse format: "text, weight: 1.2" or just "text"
+            // Update bundles when prompts change
+            node.updateBundles = function() {
+                // Parse positive prompts
+                const positiveText = node.positiveWidget.value;
+                const positiveLines = positiveText.split('\n').filter(l => l.trim());
+                const positivePrompts = positiveLines.map(line => {
                     const weightMatch = line.match(/,\s*weight:\s*([\d.]+)\s*$/i);
                     let text = line;
                     let weight = 1.0;
@@ -166,30 +196,54 @@ app.registerExtension({
                     };
                 });
 
-                console.log("[Wakawave Prompt] Parsed prompts:", prompts);
-                console.log("[Wakawave Prompt] Available widgets:", node.widgets?.map(w => w.name));
+                // Parse negative prompts
+                const negativeText = node.negativeWidget.value;
+                const negativeLines = negativeText.split('\n').filter(l => l.trim());
+                const negativePrompts = negativeLines.map(line => {
+                    const weightMatch = line.match(/,\s*weight:\s*([\d.]+)\s*$/i);
+                    let text = line;
+                    let weight = 1.0;
 
-                // Find the hidden prompt_bundle widget and update it
-                const bundleWidget = node.widgets?.find(w => w.name === "prompt_bundle");
-                if (bundleWidget) {
-                    bundleWidget.value = JSON.stringify(prompts);
-                    console.log("[Wakawave Prompt] Bundle updated successfully");
-                } else {
-                    console.warn("[Wakawave Prompt] prompt_bundle widget not found!");
-                }
+                    if (weightMatch) {
+                        weight = parseFloat(weightMatch[1]) || 1.0;
+                        text = line.substring(0, weightMatch.index).trim();
+                    }
+
+                    return {
+                        text: text,
+                        weight: weight,
+                        enabled: true
+                    };
+                });
+
+                console.log("[Wakawave Prompt] Positive prompts:", positivePrompts);
+                console.log("[Wakawave Prompt] Negative prompts:", negativePrompts);
+
+                // Update bundle widgets
+                node.positiveBundleWidget.value = JSON.stringify(positivePrompts);
+                node.negativeBundleWidget.value = JSON.stringify(negativePrompts);
+                console.log("[Wakawave Prompt] Bundles updated successfully");
             };
 
-            // Watch for changes
-            const originalCallback = node.promptWidget.callback;
-            node.promptWidget.callback = function(value) {
-                if (originalCallback) {
-                    originalCallback.apply(this, arguments);
+            // Watch for changes in both text widgets
+            const originalPositiveCallback = node.positiveWidget.callback;
+            node.positiveWidget.callback = function(value) {
+                if (originalPositiveCallback) {
+                    originalPositiveCallback.apply(this, arguments);
                 }
-                node.updateBundle();
+                node.updateBundles();
+            };
+
+            const originalNegativeCallback = node.negativeWidget.callback;
+            node.negativeWidget.callback = function(value) {
+                if (originalNegativeCallback) {
+                    originalNegativeCallback.apply(this, arguments);
+                }
+                node.updateBundles();
             };
 
             // Initial bundle update
-            setTimeout(() => node.updateBundle(), 100);
+            setTimeout(() => node.updateBundles(), 100);
 
             return result;
         };
