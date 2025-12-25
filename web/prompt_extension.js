@@ -51,7 +51,7 @@ app.registerExtension({
             // Add Prompt button
             const addBtn = this.addWidget("button", "+ Add", null, () => {
                 const current = node.promptWidget.value;
-                node.promptWidget.value = current + (current ? "\n" : "") + "";
+                node.promptWidget.value = current + (current ? "\n" : "");
                 node.updateBundle();
             });
             addBtn.serialize = false;
@@ -158,10 +158,16 @@ app.registerExtension({
                     };
                 });
 
+                console.log("[Wakawave Prompt] Parsed prompts:", prompts);
+                console.log("[Wakawave Prompt] Available widgets:", node.widgets?.map(w => w.name));
+
                 // Find the hidden prompt_bundle widget and update it
                 const bundleWidget = node.widgets?.find(w => w.name === "prompt_bundle");
                 if (bundleWidget) {
                     bundleWidget.value = JSON.stringify(prompts);
+                    console.log("[Wakawave Prompt] Bundle updated successfully");
+                } else {
+                    console.warn("[Wakawave Prompt] prompt_bundle widget not found!");
                 }
             };
 
