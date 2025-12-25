@@ -36,13 +36,13 @@ app.registerExtension({
             const result = onNodeCreated?.apply(this, arguments);
             const node = this;
 
-            // Create main prompt editor widget
-            const promptWidget = ComfyWidgets.STRING(this, "prompts", ["STRING", {
+            // Create main prompt editor widget using addWidget (like LoRA loader)
+            const promptWidget = this.addWidget("text", "prompts", "", () => {}, {
                 multiline: true,
-                default: ""
-            }], app);
+                serialize: true
+            });
 
-            node.promptWidget = promptWidget.widget;
+            node.promptWidget = promptWidget;
 
             // Create button row
             const buttonContainer = document.createElement("div");
