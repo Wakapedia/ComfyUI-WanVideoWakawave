@@ -43,7 +43,7 @@ app.registerExtension({
             }], app);
             node.positiveWidget = positiveWidget.widget;
             node.positiveWidget.serialize = false; // Don't serialize the text widget
-            node.positiveWidget.computeSize = (width) => [width, Math.max(100, node.positiveWidget.inputEl?.scrollHeight || 100)];
+            // Remove computeSize override to allow vertical resizing with node
 
             // Create NEGATIVE prompt text box
             const negativeWidget = ComfyWidgets.STRING(this, "negative_prompts", ["STRING", {
@@ -52,7 +52,7 @@ app.registerExtension({
             }], app);
             node.negativeWidget = negativeWidget.widget;
             node.negativeWidget.serialize = false; // Don't serialize the text widget
-            node.negativeWidget.computeSize = (width) => [width, Math.max(100, node.negativeWidget.inputEl?.scrollHeight || 100)];
+            // Remove computeSize override to allow vertical resizing with node
 
             // Add Line button
             const addBtn = this.addWidget("button", "+ Add Line", null, () => {
