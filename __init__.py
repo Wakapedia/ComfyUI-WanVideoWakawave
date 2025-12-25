@@ -1,5 +1,5 @@
 """
-WanVideo Advanced LoRA Loaders
+WanVideo Wakawave - Advanced LoRA & Prompt Tools
 """
 
 import traceback
@@ -8,33 +8,8 @@ NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}
 
 print("\n" + "="*75)
-print("Loading WanVideo Advanced LoRA Loaders...")
+print("Loading WanVideo Wakawave Nodes...")
 print("="*75)
-
-# Import WanVideoSuperLoraLoader (20/10 slot versions)
-try:
-    from .WanVideoSuperLoraLoader import (
-        NODE_CLASS_MAPPINGS as SUPER_MAPPINGS,
-        NODE_DISPLAY_NAME_MAPPINGS as SUPER_DISPLAY_MAPPINGS
-    )
-    NODE_CLASS_MAPPINGS.update(SUPER_MAPPINGS)
-    NODE_DISPLAY_NAME_MAPPINGS.update(SUPER_DISPLAY_MAPPINGS)
-    print("✅ WanVideoSuperLoraLoader loaded")
-except Exception as e:
-    print(f"❌ Failed to load WanVideoSuperLoraLoader: {e}")
-    traceback.print_exc()
-
-# Import WanVideoSuperLoraLoaderDynamic (experimental)
-try:
-    from .WanVideoSuperLoraLoaderDynamic import (
-        NODE_CLASS_MAPPINGS as DYNAMIC_MAPPINGS,
-        NODE_DISPLAY_NAME_MAPPINGS as DYNAMIC_DISPLAY_MAPPINGS
-    )
-    NODE_CLASS_MAPPINGS.update(DYNAMIC_MAPPINGS)
-    NODE_DISPLAY_NAME_MAPPINGS.update(DYNAMIC_DISPLAY_MAPPINGS)
-    print("✅ WanVideoSuperLoraLoaderDynamic loaded")
-except Exception as e:
-    print(f"⚠️  WanVideoSuperLoraLoaderDynamic not loaded (optional): {e}")
 
 # Import WanVideoWakawaveLoraLoader (Wakawave LoRA Loader)
 try:
