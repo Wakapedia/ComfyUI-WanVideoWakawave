@@ -46,6 +46,11 @@ app.registerExtension({
             // CRITICAL: Don't serialize the prompts widget to avoid widget index conflicts
             node.promptWidget.serialize = false;
 
+            // Create the prompt_bundle widget manually (hidden inputs don't auto-create widgets)
+            const bundleWidget = this.addWidget("text", "prompt_bundle", "", () => {});
+            bundleWidget.serialize = true;  // This one DOES serialize (sends data to Python)
+            node.bundleWidget = bundleWidget;
+
             // Create button row
             const buttonContainer = document.createElement("div");
             buttonContainer.style.cssText = "display: flex; gap: 4px; padding: 4px; flex-wrap: wrap;";
