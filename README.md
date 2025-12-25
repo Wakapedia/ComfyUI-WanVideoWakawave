@@ -40,7 +40,7 @@ Advanced LoRA management and prompt building tools for WanVideo in ComfyUI.
 3. Click Install
 4. Restart ComfyUI
 
-### Method 2: Manual Installation (Reccomended until comfyui manager integration)
+### Method 2: Manual Installation (Recommended until comfyui manager integration)
 ```bash
 cd ComfyUI/custom_nodes
 git clone https://github.com/Wakapedia/ComfyUI-WanVideoWakawave.git
