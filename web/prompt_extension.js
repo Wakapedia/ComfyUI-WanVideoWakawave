@@ -49,6 +49,7 @@ app.registerExtension({
             const positiveBundleWidget = this.addWidget("text", "positive_bundle", "[]", () => {});
             positiveBundleWidget.serialize = true;
             positiveBundleWidget.computeSize = () => [0, -4]; // Hide from display
+            positiveBundleWidget.type = "converted-widget"; // Mark as hidden
             node.positiveBundleWidget = positiveBundleWidget;
 
             // Create NEGATIVE prompt text box
@@ -64,6 +65,7 @@ app.registerExtension({
             const negativeBundleWidget = this.addWidget("text", "negative_bundle", "[]", () => {});
             negativeBundleWidget.serialize = true;
             negativeBundleWidget.computeSize = () => [0, -4]; // Hide from display
+            negativeBundleWidget.type = "converted-widget"; // Mark as hidden
             node.negativeBundleWidget = negativeBundleWidget;
 
             // Add Line button
