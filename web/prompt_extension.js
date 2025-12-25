@@ -36,11 +36,7 @@ app.registerExtension({
             const result = onNodeCreated?.apply(this, arguments);
             const node = this;
 
-            // Create POSITIVE prompt section
-            const positiveLabel = this.addWidget("text", "━━━━ POSITIVE ━━━━", "", () => {});
-            positiveLabel.serialize = false;
-            positiveLabel.computeSize = () => [this.size[0] - 20, 20];
-
+            // Create POSITIVE prompt text box
             const positiveWidget = ComfyWidgets.STRING(this, "positive_prompts", ["STRING", {
                 multiline: true,
                 default: ""
@@ -55,11 +51,7 @@ app.registerExtension({
             positiveBundleWidget.computeSize = () => [0, -4]; // Hide from display
             node.positiveBundleWidget = positiveBundleWidget;
 
-            // Create NEGATIVE prompt section
-            const negativeLabel = this.addWidget("text", "━━━━ NEGATIVE ━━━━", "", () => {});
-            negativeLabel.serialize = false;
-            negativeLabel.computeSize = () => [this.size[0] - 20, 20];
-
+            // Create NEGATIVE prompt text box
             const negativeWidget = ComfyWidgets.STRING(this, "negative_prompts", ["STRING", {
                 multiline: true,
                 default: ""
