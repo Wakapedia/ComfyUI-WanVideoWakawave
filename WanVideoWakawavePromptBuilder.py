@@ -23,10 +23,10 @@ class WanVideoWakawavePromptBuilder:
             "required": {},
             "optional": {
                 "prev_prompt": ("STRING", {"forceInput": True}),
-                "separator": (["comma", "newline", "space", "pipe", "double_slash", "none"], {"default": "comma"}),
+                "separator": (["none", "comma", "newline", "space", "pipe", "double_slash"], {"default": "none"}),
                 "use_weights": ("BOOLEAN", {"default": True}),
                 "segment_mode": ("BOOLEAN", {"default": False, "tooltip": "Enable segment-based prompting for different video segments"}),
-                "segment_number": ("INT", {"default": 0, "min": 0, "max": 100, "tooltip": "Current segment number (0-based)"}),
+                "segment_number": ("INT", {"default": 0, "min": 0, "max": 100, "step": 1, "tooltip": "Current segment number (0-based)"}),
             },
             "hidden": {
                 "prompt_bundle": "STRING",  # JSON from Wakawave UI - hidden from display
