@@ -45,13 +45,6 @@ app.registerExtension({
             node.positiveWidget.serialize = false; // Don't serialize the text widget
             node.positiveWidget.computeSize = (width) => [width, Math.max(100, node.positiveWidget.inputEl?.scrollHeight || 100)];
 
-            // Create positive_bundle widget (hidden, sends data to Python)
-            const positiveBundleWidget = this.addWidget("text", "positive_bundle", "[]", () => {});
-            positiveBundleWidget.serialize = true;
-            positiveBundleWidget.computeSize = () => [0, -4]; // Hide from display
-            positiveBundleWidget.type = "converted-widget"; // Mark as hidden
-            node.positiveBundleWidget = positiveBundleWidget;
-
             // Create NEGATIVE prompt text box
             const negativeWidget = ComfyWidgets.STRING(this, "negative_prompts", ["STRING", {
                 multiline: true,
@@ -60,13 +53,6 @@ app.registerExtension({
             node.negativeWidget = negativeWidget.widget;
             node.negativeWidget.serialize = false; // Don't serialize the text widget
             node.negativeWidget.computeSize = (width) => [width, Math.max(100, node.negativeWidget.inputEl?.scrollHeight || 100)];
-
-            // Create negative_bundle widget (hidden, sends data to Python)
-            const negativeBundleWidget = this.addWidget("text", "negative_bundle", "[]", () => {});
-            negativeBundleWidget.serialize = true;
-            negativeBundleWidget.computeSize = () => [0, -4]; // Hide from display
-            negativeBundleWidget.type = "converted-widget"; // Mark as hidden
-            node.negativeBundleWidget = negativeBundleWidget;
 
             // Add Line button
             const addBtn = this.addWidget("button", "+ Add Line", null, () => {
@@ -235,6 +221,25 @@ app.registerExtension({
                 }
                 node.updateBundles();
             };
+
+            // Create hidden bundle widgets at the END (after all visible widgets)
+            const positiveBundleWidget = this.addWidget("text", "positive_bundle", "[]", () => {});
+            positiveBundleWidget.serialize = true;
+            positiveBundleWidget.type = "converted-widget";
+            Object.defineProperty(positiveBundleWidget, 'computeSize', {
+                value: () => [0, -4],
+                writable: false
+            });
+            node.positiveBundleWidget = positiveBundleWidget;
+
+            const negativeBundleWidget = this.addWidget("text", "negative_bundle", "[]", () => {});
+            negativeBundleWidget.serialize = true;
+            negativeBundleWidget.type = "converted-widget";
+            Object.defineProperty(negativeBundleWidget, 'computeSize', {
+                value: () => [0, -4],
+                writable: false
+            });
+            node.negativeBundleWidget = negativeBundleWidget;
 
             // Initial bundle update
             setTimeout(() => node.updateBundles(), 100);
