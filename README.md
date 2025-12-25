@@ -91,26 +91,26 @@ git clone https://github.com/Wakapedia/ComfyUI-WanVideoWakawave.git
 
 **Prompt Format:**
 ```
-beautiful woman, weight: 1.2
-red dress, weight: 1.0
-sunset lighting, weight: 0.8
+nebula in deep space, weight: 1.2
+vibrant purple and blue colors, weight: 1.0
+stars twinkling, weight: 0.8
 ```
 
 Or simple format (defaults to weight 1.0):
 ```
-beautiful woman
-red dress
-sunset lighting
+nebula in deep space
+vibrant purple and blue colors
+stars twinkling
 ```
 
 **Segment Mode (for 500+ frame videos):**
 1. Enable `segment_mode`
 2. Format prompts with segment numbers:
 ```
-0: woman standing still, weight: 1.0
-1: woman starts walking, weight: 1.0
-2: woman waving hand, weight: 1.1
-3: woman smiling at camera, weight: 1.2
+0: planet Earth rotating slowly, weight: 1.0
+1: camera zooming toward the moon, weight: 1.0
+2: passing by asteroid belt, weight: 1.1
+3: approaching distant galaxy, weight: 1.2
 ```
 3. Connect a segment counter to `segment_number` input
 4. Each segment uses its corresponding prompts
@@ -139,9 +139,9 @@ sunset lighting
                  ↓
 [Wakawave Prompt Builder] (segment_mode: ON) → [WanVideo Sampler]
 
-Segment 0 (frames 0-76): "woman standing still"
-Segment 1 (frames 77-153): "woman walking forward"
-Segment 2 (frames 154-230): "woman waving hand"
+Segment 0 (frames 0-76): "forest at dawn, mist rising"
+Segment 1 (frames 77-153): "sunlight breaking through trees"
+Segment 2 (frames 154-230): "birds flying through the canopy"
 ```
 
 ### Multiple LoRA Combinations
