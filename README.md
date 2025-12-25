@@ -80,12 +80,20 @@ git clone https://github.com/Wakapedia/ComfyUI-WanVideoWakawave.git
 
 ### Wakawave Prompt Builder
 
+**Outputs:**
+- `positive` - Positive prompt text (STRING)
+- `negative` - Negative prompt text (STRING)
+
+**⚠️ Important:** The Prompt Builder outputs text (STRING), not embeddings. You must use **WanVideo TextEncode Cached** to convert text to embeddings before connecting to the sampler.
+
 **Basic Usage:**
 1. Add the node: Right-click → `WanVideo` → `Prompts` → `Wakawave Prompt Builder`
-2. Type prompts in the text box (one per line)
-3. Optional: Add weights like `prompt text, weight: 1.2`
-4. Click `+ Add` for new prompt lines
-5. Connect output to your WanVideo sampler
+2. Type positive prompts in the top text box (one per line)
+3. Type negative prompts in the bottom text box (optional)
+4. Optional: Add weights like `prompt text, weight: 1.2`
+5. Click `+ Add Line` for new prompt lines
+6. Connect `positive` → **WanVideo TextEncode Cached** → sampler
+7. Connect `negative` → **WanVideo TextEncode Cached** → sampler
 
 ![Prompt Builder Interface](images/Wakawave%20Prompt%20Builder.png)
 
@@ -129,19 +137,28 @@ stars twinkling
 
 ### Basic LoRA + Prompt Setup
 ```
-[Wakawave LoRA Loader] → [WanVideo Set LoRAs] → [WanVideo Model]
-[Wakawave Prompt Builder] → [WanVideo Sampler]
+[Wakawave LoRA Loader] → lora → [WanVideo Set LoRAs] → [WanVideo Model]
+
+[Wakawave Prompt Builder]
+   ├─ positive → [WanVideo TextEncode Cached] → positive_embeds ──┐
+   └─ negative → [WanVideo TextEncode Cached] → negative_embeds ──┤
+                                                                    ├─→ [WanVideo Sampler]
+                                                                    │
+                                                 [WanVideo Model] ──┘
 ```
 
 ### Multi-Segment Long Video (500+ frames)
 ```
 [Segment Counter] → segment_number
                  ↓
-[Wakawave Prompt Builder] (segment_mode: ON) → [WanVideo Sampler]
+[Wakawave Prompt Builder] (segment_mode: ON)
+   ├─ positive → [WanVideo TextEncode Cached] → positive_embeds → [WanVideo Sampler]
+   └─ negative → [WanVideo TextEncode Cached] → negative_embeds → [WanVideo Sampler]
 
-Segment 0 (frames 0-76): "forest at dawn, mist rising"
-Segment 1 (frames 77-153): "sunlight breaking through trees"
-Segment 2 (frames 154-230): "birds flying through the canopy"
+Example segment prompts:
+  Segment 0 (frames 0-76): "0: forest at dawn, mist rising"
+  Segment 1 (frames 77-153): "1: sunlight breaking through trees"
+  Segment 2 (frames 154-230): "2: birds flying through the canopy"
 ```
 
 ### Multiple LoRA Combinations
