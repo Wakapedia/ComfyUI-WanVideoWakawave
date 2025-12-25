@@ -223,22 +223,21 @@ app.registerExtension({
             };
 
             // Create hidden bundle widgets at the END (after all visible widgets)
+            // Use same hiding approach as LoRA loader
             const positiveBundleWidget = this.addWidget("text", "positive_bundle", "[]", () => {});
+            positiveBundleWidget.type = "text";
+            positiveBundleWidget.hidden = true;
+            positiveBundleWidget.draw = () => {};
+            positiveBundleWidget.computeSize = () => [0, -4];
             positiveBundleWidget.serialize = true;
-            positiveBundleWidget.type = "converted-widget";
-            Object.defineProperty(positiveBundleWidget, 'computeSize', {
-                value: () => [0, -4],
-                writable: false
-            });
             node.positiveBundleWidget = positiveBundleWidget;
 
             const negativeBundleWidget = this.addWidget("text", "negative_bundle", "[]", () => {});
+            negativeBundleWidget.type = "text";
+            negativeBundleWidget.hidden = true;
+            negativeBundleWidget.draw = () => {};
+            negativeBundleWidget.computeSize = () => [0, -4];
             negativeBundleWidget.serialize = true;
-            negativeBundleWidget.type = "converted-widget";
-            Object.defineProperty(negativeBundleWidget, 'computeSize', {
-                value: () => [0, -4],
-                writable: false
-            });
             node.negativeBundleWidget = negativeBundleWidget;
 
             // Initial bundle update
