@@ -552,7 +552,14 @@ export class PresetModal {
             return;
         }
 
-        const filename = `wakawave_prompts_${new Date().toISOString().split('T')[0]}.json`;
+        // Prompt for custom filename
+        const defaultName = `wakawave_prompts_${new Date().toISOString().split('T')[0]}`;
+        const customName = prompt('Enter filename for export (without .json extension):', defaultName);
+
+        if (!customName) return; // User cancelled
+
+        // Sanitize filename and add .json extension
+        const filename = `${customName.replace(/[^a-zA-Z0-9_-]/g, '_')}.json`;
         this.downloadJSON(this.presets, filename);
         alert(`Exported ${Object.keys(this.presets).length} preset(s)!`);
     }

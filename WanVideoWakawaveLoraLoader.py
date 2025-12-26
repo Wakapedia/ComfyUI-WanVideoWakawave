@@ -7,6 +7,7 @@ Adapted from ND Super Nodes UI, outputs WANVIDLORA for WanVideo
 import os
 import json
 import folder_paths
+from pathlib import Path
 from typing import Union, Dict, Any, Tuple, List
 
 
@@ -97,8 +98,19 @@ class WanVideoWakawaveLoraLoader:
             try:
                 lora_path = folder_paths.get_full_path("loras", lora_name)
             except:
-                # Fallback: try without get_full_path
+                # Fallback with path traversal protection
                 lora_path = os.path.join(folder_paths.models_dir, "loras", lora_name)
+                # Resolve to absolute path and verify it's within loras directory
+                loras_dir = Path(folder_paths.models_dir) / "loras"
+                try:
+                    resolved_path = Path(lora_path).resolve()
+                    if not resolved_path.is_relative_to(loras_dir):
+                        print(f"  ⚠️  Security: Rejected path outside loras directory: {lora_name}")
+                        continue
+                    lora_path = str(resolved_path)
+                except (ValueError, OSError) as e:
+                    print(f"  ⚠️  Invalid path: {lora_name} - {e}")
+                    continue
 
             if lora_path and os.path.exists(lora_path):
                 lora_list.append({
