@@ -95,7 +95,21 @@ git clone https://github.com/Wakapedia/ComfyUI-WanVideoWakawave.git
 6. Connect `positive` → **WanVideo TextEncode Cached** → sampler
 7. Connect `negative` → **WanVideo TextEncode Cached** → sampler
 
-![Prompt Builder Interface](images/Wakawave%20Prompt%20Builder.png)
+**Prompt Builder Node Interface:**
+
+![Prompt Builder Node](images/Wakawave-Prompt-main.png)
+
+**Visual Preset Browser:**
+
+![Preset Browser Modal](images/Wakawave-Prompt-loader.png)
+
+The visual preset browser features:
+- **Search & Filter** - Find presets instantly
+- **Live Preview** - See prompts before loading
+- **Load Modes** - Load both, positive only, negative only, or append
+- **Import/Export** - Share presets as JSON files
+- **Rename, Duplicate, Delete** - Full preset management
+- **Usage Tracking** - See which presets you use most
 
 **Prompt Format:**
 ```
