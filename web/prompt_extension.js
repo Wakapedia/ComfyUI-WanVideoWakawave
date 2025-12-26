@@ -1,8 +1,15 @@
 import { app } from "../../scripts/app.js";
 import { ComfyWidgets } from "../../scripts/widgets.js";
+import { PresetModal } from "./prompt_preset_modal.js";
 
 const PROMPT_NODE_TYPE = "WanVideoWakawavePromptBuilder";
 const PRESETS_KEY = "wanvideo_wakawave_prompt_presets";
+
+// Load CSS
+const link = document.createElement("link");
+link.rel = "stylesheet";
+link.href = new URL("./prompt_preset_modal.css", import.meta.url).href;
+document.head.appendChild(link);
 
 // Load/save presets
 function loadPresets() {
@@ -70,41 +77,40 @@ app.registerExtension({
                 if (!name) return;
 
                 const presets = loadPresets();
+                const now = new Date().toISOString();
+
+                // Check if updating existing preset
+                const isUpdate = !!presets[name];
+
+                // Store with enhanced metadata
                 presets[name] = {
                     positive: node.positiveWidget.value,
-                    negative: node.negativeWidget.value
+                    negative: node.negativeWidget.value,
+                    created: isUpdate ? (presets[name].created || now) : now,
+                    modified: now,
+                    usageCount: isUpdate ? (presets[name].usageCount || 0) : 0,
+                    description: presets[name]?.description || "",
+                    tags: presets[name]?.tags || [],
+                    favorite: presets[name]?.favorite || false
                 };
+
                 savePresets(presets);
-                alert(`Preset "${name}" saved!`);
+                alert(`Preset "${name}" ${isUpdate ? 'updated' : 'saved'}!`);
             });
             saveBtn.serialize = false;
 
-            // Load Preset button
+            // Load Preset button - Use visual modal
             const loadBtn = this.addWidget("button", "📂 Load", null, () => {
                 const presets = loadPresets();
-                const names = Object.keys(presets);
 
-                if (names.length === 0) {
+                if (Object.keys(presets).length === 0) {
                     alert("No presets saved yet!");
                     return;
                 }
 
-                const list = names.map((n, i) => `${i + 1}. ${n}`).join("\n");
-                const choice = prompt(`Choose preset (enter name or number):\n\n${list}`);
-
-                if (!choice) return;
-
-                // Try exact match first, then number
-                let selectedName = choice;
-                if (!presets[choice]) {
-                    const num = parseInt(choice);
-                    if (!isNaN(num) && num > 0 && num <= names.length) {
-                        selectedName = names[num - 1];
-                    }
-                }
-
-                if (presets[selectedName]) {
-                    const preset = presets[selectedName];
+                // Create and show modal
+                const modal = new PresetModal();
+                modal.show(presets, (name, preset) => {
                     // Handle both old single-prompt presets and new dual-prompt presets
                     if (typeof preset === 'string') {
                         node.positiveWidget.value = preset;
@@ -113,44 +119,41 @@ app.registerExtension({
                         node.positiveWidget.value = preset.positive || "";
                         node.negativeWidget.value = preset.negative || "";
                     }
+
                     node.updateBundles();
-                    alert(`Preset "${selectedName}" loaded!`);
-                } else {
-                    alert("Preset not found!");
-                }
+
+                    // Save updated presets (with updated usage count)
+                    savePresets(presets);
+                });
             });
             loadBtn.serialize = false;
 
-            // Delete Preset button
-            const deleteBtn = this.addWidget("button", "🗑 Delete", null, () => {
+            // Delete Preset button - Merged into Load modal
+            // Users can delete from the Load modal interface
+            // Keeping this button for quick access
+            const deleteBtn = this.addWidget("button", "🗑 Manage", null, () => {
                 const presets = loadPresets();
-                const names = Object.keys(presets);
 
-                if (names.length === 0) {
-                    alert("No presets to delete!");
+                if (Object.keys(presets).length === 0) {
+                    alert("No presets to manage!");
                     return;
                 }
 
-                const list = names.map((n, i) => `${i + 1}. ${n}`).join("\n");
-                const choice = prompt(`Delete preset (enter name or number):\n\n${list}`);
-
-                if (!choice) return;
-
-                let selectedName = choice;
-                if (!presets[choice]) {
-                    const num = parseInt(choice);
-                    if (!isNaN(num) && num > 0 && num <= names.length) {
-                        selectedName = names[num - 1];
+                // Open modal in management mode (same as load)
+                const modal = new PresetModal();
+                modal.show(presets, (name, preset) => {
+                    // Also allow loading from manage button
+                    if (typeof preset === 'string') {
+                        node.positiveWidget.value = preset;
+                        node.negativeWidget.value = "";
+                    } else {
+                        node.positiveWidget.value = preset.positive || "";
+                        node.negativeWidget.value = preset.negative || "";
                     }
-                }
 
-                if (presets[selectedName]) {
-                    delete presets[selectedName];
+                    node.updateBundles();
                     savePresets(presets);
-                    alert(`Preset "${selectedName}" deleted!`);
-                } else {
-                    alert("Preset not found!");
-                }
+                });
             });
             deleteBtn.serialize = false;
 
