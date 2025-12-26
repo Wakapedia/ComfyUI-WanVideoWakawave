@@ -55,6 +55,10 @@ export class PresetModal {
             <div class="preset-modal-search">
                 <input type="text" placeholder="🔍 Search presets..." class="search-input">
                 <span class="preset-count">0 presets</span>
+                <div class="search-actions">
+                    <button class="btn-icon" data-action="import" title="Import presets from file">📥</button>
+                    <button class="btn-icon" data-action="export" title="Export all presets to file">📤</button>
+                </div>
             </div>
 
             <div class="preset-modal-content">
@@ -78,10 +82,23 @@ export class PresetModal {
                     <span class="selected-name"></span>
                 </div>
                 <div class="footer-actions">
+                    <button class="btn-secondary btn-small" data-action="export-selected" disabled title="Export this preset">📤</button>
                     <button class="btn-secondary" data-action="rename" disabled>✏️ Rename</button>
                     <button class="btn-secondary" data-action="duplicate" disabled>📋 Duplicate</button>
                     <button class="btn-danger" data-action="delete" disabled>🗑️ Delete</button>
-                    <button class="btn-primary" data-action="load" disabled>✅ Load</button>
+                    <div class="load-dropdown" data-disabled="true">
+                        <button class="btn-primary dropdown-toggle" data-action="load" disabled>
+                            ✅ Load <span class="arrow">▼</span>
+                        </button>
+                        <div class="dropdown-menu">
+                            <button data-action="load-both">Load Both</button>
+                            <button data-action="load-positive">Load Positive Only</button>
+                            <button data-action="load-negative">Load Negative Only</button>
+                            <div class="dropdown-divider"></div>
+                            <button data-action="append-positive">Append to Positive</button>
+                            <button data-action="append-negative">Append to Negative</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
@@ -110,14 +127,51 @@ export class PresetModal {
             this.renderPresetList();
         });
 
+        // Import/Export buttons
+        modal.querySelector('[data-action="import"]').addEventListener('click', () => this.importPresets());
+        modal.querySelector('[data-action="export"]').addEventListener('click', () => this.exportAllPresets());
+        modal.querySelector('[data-action="export-selected"]').addEventListener('click', () => this.exportSelectedPreset());
+
         // Action buttons
-        modal.querySelector('[data-action="load"]').addEventListener('click', () => this.loadPreset());
         modal.querySelector('[data-action="rename"]').addEventListener('click', () => this.renamePreset());
         modal.querySelector('[data-action="duplicate"]').addEventListener('click', () => this.duplicatePreset());
         modal.querySelector('[data-action="delete"]').addEventListener('click', () => this.deletePreset());
 
+        // Load dropdown
+        this.setupLoadDropdown();
+
         // Keyboard shortcuts
         document.addEventListener('keydown', this.handleKeydown.bind(this));
+    }
+
+    /**
+     * Setup load dropdown with different load modes
+     */
+    setupLoadDropdown() {
+        const dropdown = this.modal.querySelector('.load-dropdown');
+        const toggleBtn = dropdown.querySelector('.dropdown-toggle');
+        const menu = dropdown.querySelector('.dropdown-menu');
+
+        // Toggle dropdown
+        toggleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (dropdown.dataset.disabled === 'true') return;
+
+            const isOpen = dropdown.classList.contains('open');
+            dropdown.classList.toggle('open', !isOpen);
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', () => {
+            dropdown.classList.remove('open');
+        });
+
+        // Load mode buttons
+        menu.querySelector('[data-action="load-both"]').addEventListener('click', () => this.loadPreset('both'));
+        menu.querySelector('[data-action="load-positive"]').addEventListener('click', () => this.loadPreset('positive'));
+        menu.querySelector('[data-action="load-negative"]').addEventListener('click', () => this.loadPreset('negative'));
+        menu.querySelector('[data-action="append-positive"]').addEventListener('click', () => this.loadPreset('append-positive'));
+        menu.querySelector('[data-action="append-negative"]').addEventListener('click', () => this.loadPreset('append-negative'));
     }
 
     /**
@@ -283,12 +337,19 @@ export class PresetModal {
      * Update action button states
      */
     updateActionButtons() {
-        const buttons = this.modal.querySelectorAll('.footer-actions button');
         const hasSelection = !!this.selectedPreset;
 
+        // Update regular buttons
+        const buttons = this.modal.querySelectorAll('.footer-actions button:not(.dropdown-toggle):not([data-action^="load-"]):not([data-action^="append-"])');
         buttons.forEach(btn => {
             btn.disabled = !hasSelection;
         });
+
+        // Update load dropdown
+        const dropdown = this.modal.querySelector('.load-dropdown');
+        const dropdownToggle = dropdown.querySelector('.dropdown-toggle');
+        dropdownToggle.disabled = !hasSelection;
+        dropdown.dataset.disabled = hasSelection ? 'false' : 'true';
 
         const selectedName = this.modal.querySelector('.selected-name');
         selectedName.textContent = hasSelection ? this.selectedPreset : '';
@@ -296,8 +357,9 @@ export class PresetModal {
 
     /**
      * Load the selected preset
+     * @param {string} mode - 'both', 'positive', 'negative', 'append-positive', 'append-negative'
      */
-    loadPreset() {
+    loadPreset(mode = 'both') {
         if (!this.selectedPreset) return;
 
         const preset = this.presets[this.selectedPreset];
@@ -309,7 +371,7 @@ export class PresetModal {
         }
 
         if (this.onLoadCallback) {
-            this.onLoadCallback(this.selectedPreset, preset);
+            this.onLoadCallback(this.selectedPreset, preset, mode);
         }
 
         this.close();
@@ -386,6 +448,122 @@ export class PresetModal {
         this.renderPresetList();
         this.updatePreview();
         this.updateActionButtons();
+    }
+
+    /**
+     * Import presets from a JSON file
+     */
+    importPresets() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const imported = JSON.parse(event.target.result);
+
+                    // Validate format
+                    if (typeof imported !== 'object') {
+                        alert('Invalid preset file format!');
+                        return;
+                    }
+
+                    // Ask merge or replace
+                    const mode = confirm(
+                        `Import ${Object.keys(imported).length} preset(s)?\n\n` +
+                        'Click OK to MERGE with existing presets.\n' +
+                        'Click Cancel to REPLACE all presets.'
+                    );
+
+                    if (mode) {
+                        // Merge - ask about conflicts
+                        const conflicts = Object.keys(imported).filter(name => this.presets[name]);
+                        if (conflicts.length > 0) {
+                            const overwrite = confirm(
+                                `${conflicts.length} preset(s) already exist:\n${conflicts.join(', ')}\n\n` +
+                                'Click OK to overwrite them.\n' +
+                                'Click Cancel to skip them.'
+                            );
+
+                            if (overwrite) {
+                                Object.assign(this.presets, imported);
+                            } else {
+                                // Only add new ones
+                                Object.keys(imported).forEach(name => {
+                                    if (!this.presets[name]) {
+                                        this.presets[name] = imported[name];
+                                    }
+                                });
+                            }
+                        } else {
+                            Object.assign(this.presets, imported);
+                        }
+                    } else {
+                        // Replace all
+                        this.presets = imported;
+                    }
+
+                    this.renderPresetList();
+                    this.updatePreview();
+                    alert(`Successfully imported ${Object.keys(imported).length} preset(s)!`);
+                } catch (error) {
+                    alert('Failed to import presets: ' + error.message);
+                }
+            };
+
+            reader.readAsText(file);
+        };
+
+        input.click();
+    }
+
+    /**
+     * Export all presets to a JSON file
+     */
+    exportAllPresets() {
+        if (Object.keys(this.presets).length === 0) {
+            alert('No presets to export!');
+            return;
+        }
+
+        const filename = `wakawave_prompts_${new Date().toISOString().split('T')[0]}.json`;
+        this.downloadJSON(this.presets, filename);
+        alert(`Exported ${Object.keys(this.presets).length} preset(s)!`);
+    }
+
+    /**
+     * Export the selected preset to a JSON file
+     */
+    exportSelectedPreset() {
+        if (!this.selectedPreset) return;
+
+        const preset = this.presets[this.selectedPreset];
+        const data = { [this.selectedPreset]: preset };
+        const filename = `wakawave_prompt_${this.selectedPreset.replace(/[^a-zA-Z0-9]/g, '_')}.json`;
+
+        this.downloadJSON(data, filename);
+    }
+
+    /**
+     * Download data as JSON file
+     */
+    downloadJSON(data, filename) {
+        const json = JSON.stringify(data, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     }
 
     /**

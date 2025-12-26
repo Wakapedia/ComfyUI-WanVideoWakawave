@@ -110,14 +110,46 @@ app.registerExtension({
 
                 // Create and show modal
                 const modal = new PresetModal();
-                modal.show(presets, (name, preset) => {
-                    // Handle both old single-prompt presets and new dual-prompt presets
+                modal.show(presets, (name, preset, mode = 'both') => {
+                    // Get positive and negative values from preset
+                    let positive = "";
+                    let negative = "";
+
                     if (typeof preset === 'string') {
-                        node.positiveWidget.value = preset;
-                        node.negativeWidget.value = "";
+                        // Old format - single string is positive
+                        positive = preset;
+                        negative = "";
                     } else {
-                        node.positiveWidget.value = preset.positive || "";
-                        node.negativeWidget.value = preset.negative || "";
+                        positive = preset.positive || "";
+                        negative = preset.negative || "";
+                    }
+
+                    // Apply based on load mode
+                    switch (mode) {
+                        case 'both':
+                            node.positiveWidget.value = positive;
+                            node.negativeWidget.value = negative;
+                            break;
+
+                        case 'positive':
+                            node.positiveWidget.value = positive;
+                            // Keep existing negative
+                            break;
+
+                        case 'negative':
+                            // Keep existing positive
+                            node.negativeWidget.value = negative;
+                            break;
+
+                        case 'append-positive':
+                            const currentPos = node.positiveWidget.value;
+                            node.positiveWidget.value = currentPos + (currentPos ? '\n\n' : '') + positive;
+                            break;
+
+                        case 'append-negative':
+                            const currentNeg = node.negativeWidget.value;
+                            node.negativeWidget.value = currentNeg + (currentNeg ? '\n\n' : '') + negative;
+                            break;
                     }
 
                     node.updateBundles();
@@ -128,9 +160,7 @@ app.registerExtension({
             });
             loadBtn.serialize = false;
 
-            // Delete Preset button - Merged into Load modal
-            // Users can delete from the Load modal interface
-            // Keeping this button for quick access
+            // Manage Preset button - Opens modal for preset management
             const deleteBtn = this.addWidget("button", "🗑 Manage", null, () => {
                 const presets = loadPresets();
 
@@ -139,16 +169,40 @@ app.registerExtension({
                     return;
                 }
 
-                // Open modal in management mode (same as load)
+                // Open modal (same as load with all modes available)
                 const modal = new PresetModal();
-                modal.show(presets, (name, preset) => {
-                    // Also allow loading from manage button
+                modal.show(presets, (name, preset, mode = 'both') => {
+                    // Same load logic as Load button
+                    let positive = "";
+                    let negative = "";
+
                     if (typeof preset === 'string') {
-                        node.positiveWidget.value = preset;
-                        node.negativeWidget.value = "";
+                        positive = preset;
+                        negative = "";
                     } else {
-                        node.positiveWidget.value = preset.positive || "";
-                        node.negativeWidget.value = preset.negative || "";
+                        positive = preset.positive || "";
+                        negative = preset.negative || "";
+                    }
+
+                    switch (mode) {
+                        case 'both':
+                            node.positiveWidget.value = positive;
+                            node.negativeWidget.value = negative;
+                            break;
+                        case 'positive':
+                            node.positiveWidget.value = positive;
+                            break;
+                        case 'negative':
+                            node.negativeWidget.value = negative;
+                            break;
+                        case 'append-positive':
+                            const currentPos = node.positiveWidget.value;
+                            node.positiveWidget.value = currentPos + (currentPos ? '\n\n' : '') + positive;
+                            break;
+                        case 'append-negative':
+                            const currentNeg = node.negativeWidget.value;
+                            node.negativeWidget.value = currentNeg + (currentNeg ? '\n\n' : '') + negative;
+                            break;
                     }
 
                     node.updateBundles();
