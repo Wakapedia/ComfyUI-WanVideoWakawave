@@ -156,6 +156,9 @@ app.registerExtension({
 
                     // Save updated presets (with updated usage count)
                     savePresets(presets);
+                }, () => {
+                    // Save callback for modal operations (rename, duplicate, delete)
+                    savePresets(presets);
                 });
             });
             loadBtn.serialize = false;
@@ -206,6 +209,9 @@ app.registerExtension({
                     }
 
                     node.updateBundles();
+                    savePresets(presets);
+                }, () => {
+                    // Save callback for modal operations (rename, duplicate, delete)
                     savePresets(presets);
                 });
             });

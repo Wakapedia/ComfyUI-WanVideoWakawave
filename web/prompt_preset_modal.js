@@ -15,9 +15,10 @@ export class PresetModal {
     /**
      * Show the preset browser modal
      */
-    show(presets, onLoad) {
+    show(presets, onLoad, onSave) {
         this.presets = presets;
         this.onLoadCallback = onLoad;
+        this.onSaveCallback = onSave;
         this.selectedPreset = null;
         this.searchTerm = "";
 
@@ -398,6 +399,11 @@ export class PresetModal {
         }
         delete this.presets[this.selectedPreset];
 
+        // Save changes to localStorage
+        if (this.onSaveCallback) {
+            this.onSaveCallback();
+        }
+
         this.selectedPreset = newName;
         this.renderPresetList();
         this.selectPreset(newName);
@@ -428,6 +434,11 @@ export class PresetModal {
                 usageCount: 0
             };
 
+        // Save changes to localStorage
+        if (this.onSaveCallback) {
+            this.onSaveCallback();
+        }
+
         this.renderPresetList();
         this.selectPreset(newName);
     }
@@ -444,6 +455,11 @@ export class PresetModal {
 
         delete this.presets[this.selectedPreset];
         this.selectedPreset = null;
+
+        // Save changes to localStorage
+        if (this.onSaveCallback) {
+            this.onSaveCallback();
+        }
 
         this.renderPresetList();
         this.updatePreview();
@@ -506,6 +522,11 @@ export class PresetModal {
                     } else {
                         // Replace all
                         this.presets = imported;
+                    }
+
+                    // Save changes to localStorage
+                    if (this.onSaveCallback) {
+                        this.onSaveCallback();
                     }
 
                     this.renderPresetList();
