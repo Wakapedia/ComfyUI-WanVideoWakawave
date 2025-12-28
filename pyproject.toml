@@ -1,7 +1,7 @@
 [project]
 name = "ComfyUI-WanVideoWakawave"
 description = "Advanced LoRA and Prompt management tools for WanVideo in ComfyUI with saving, recalling, and import/export features"
-version = "1.0.5"
+version = "1.0.6"
 license = {file = "LICENSE"} 
 
 [project.urls]
