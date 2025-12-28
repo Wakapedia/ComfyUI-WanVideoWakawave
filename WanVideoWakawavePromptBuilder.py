@@ -30,8 +30,10 @@ class WanVideoWakawavePromptBuilder:
                 "segment_number": ("INT", {"default": 0, "min": 0, "max": 100, "step": 1, "tooltip": "Current segment number (0-based)"}),
             },
             "hidden": {
-                "positive_bundle": "STRING",  # JSON from Wakawave UI - positive prompts
-                "negative_bundle": "STRING",  # JSON from Wakawave UI - negative prompts
+                "positive_prompts": "STRING",  # Direct text from the text widget (serialized)
+                "negative_prompts": "STRING",  # Direct text from the text widget (serialized)
+                "positive_bundle": "STRING",   # JSON from Wakawave UI - positive prompts (backup)
+                "negative_bundle": "STRING",   # JSON from Wakawave UI - negative prompts (backup)
             }
         }
 
@@ -49,12 +51,14 @@ class WanVideoWakawavePromptBuilder:
         use_weights: bool = True,
         segment_mode: bool = False,
         segment_number: int = 0,
+        positive_prompts: Union[str, None] = None,
+        negative_prompts: Union[str, None] = None,
         positive_bundle: Union[str, None] = None,
         negative_bundle: Union[str, None] = None,
         **kwargs
     ):
         """
-        Build final positive and negative prompts from Wakawave UI bundles
+        Build final positive and negative prompts from serialized text or Wakawave UI bundles
 
         Args:
             prev_positive: Previous positive prompt to prepend
@@ -63,8 +67,10 @@ class WanVideoWakawavePromptBuilder:
             use_weights: Whether to apply weights like (text:1.2)
             segment_mode: Enable segment-based prompting
             segment_number: Current segment number (for segment mode)
-            positive_bundle: JSON string from Wakawave UI containing positive prompt configs
-            negative_bundle: JSON string from Wakawave UI containing negative prompt configs
+            positive_prompts: Direct text from the text widget (serialized)
+            negative_prompts: Direct text from the text widget (serialized)
+            positive_bundle: JSON string from Wakawave UI containing positive prompt configs (backup)
+            negative_bundle: JSON string from Wakawave UI containing negative prompt configs (backup)
         """
 
         print("\n" + "="*75)

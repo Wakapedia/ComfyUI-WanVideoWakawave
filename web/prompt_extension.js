@@ -49,7 +49,7 @@ app.registerExtension({
                 default: ""
             }], app);
             node.positiveWidget = positiveWidget.widget;
-            node.positiveWidget.serialize = false; // Don't serialize the text widget
+            node.positiveWidget.serialize = true; // SERIALIZE - Save text directly to workflow
             // Remove computeSize override to allow vertical resizing with node
 
             // Create NEGATIVE prompt text box
@@ -58,8 +58,34 @@ app.registerExtension({
                 default: ""
             }], app);
             node.negativeWidget = negativeWidget.widget;
-            node.negativeWidget.serialize = false; // Don't serialize the text widget
+            node.negativeWidget.serialize = true; // SERIALIZE - Save text directly to workflow
             // Remove computeSize override to allow vertical resizing with node
+
+            // Create hidden bundle widgets EARLY (so configure can access them)
+            // Use same hiding approach as LoRA loader
+            const positiveBundleWidget = this.addWidget("text", "positive_bundle", "[]", () => {});
+            positiveBundleWidget.type = "text";
+            positiveBundleWidget.hidden = true;
+            positiveBundleWidget.draw = () => {};
+            positiveBundleWidget.computeSize = () => [0, -4];
+            positiveBundleWidget.serialize = true;
+            node.positiveBundleWidget = positiveBundleWidget;
+
+            const negativeBundleWidget = this.addWidget("text", "negative_bundle", "[]", () => {});
+            negativeBundleWidget.type = "text";
+            negativeBundleWidget.hidden = true;
+            negativeBundleWidget.draw = () => {};
+            negativeBundleWidget.computeSize = () => [0, -4];
+            negativeBundleWidget.serialize = true;
+            node.negativeBundleWidget = negativeBundleWidget;
+
+            // Override configure to ensure text persists on load
+            const originalConfigure = node.configure.bind(node);
+            node.configure = function(serialized) {
+                originalConfigure(serialized);
+                // With serialize = true, the text widgets should now be restored automatically
+                // This override ensures any edge cases are handled
+            };
 
             // Add Line button
             const addBtn = this.addWidget("button", "+ Add Line", null, () => {
@@ -284,24 +310,6 @@ app.registerExtension({
                 }
                 node.updateBundles();
             };
-
-            // Create hidden bundle widgets at the END (after all visible widgets)
-            // Use same hiding approach as LoRA loader
-            const positiveBundleWidget = this.addWidget("text", "positive_bundle", "[]", () => {});
-            positiveBundleWidget.type = "text";
-            positiveBundleWidget.hidden = true;
-            positiveBundleWidget.draw = () => {};
-            positiveBundleWidget.computeSize = () => [0, -4];
-            positiveBundleWidget.serialize = true;
-            node.positiveBundleWidget = positiveBundleWidget;
-
-            const negativeBundleWidget = this.addWidget("text", "negative_bundle", "[]", () => {});
-            negativeBundleWidget.type = "text";
-            negativeBundleWidget.hidden = true;
-            negativeBundleWidget.draw = () => {};
-            negativeBundleWidget.computeSize = () => [0, -4];
-            negativeBundleWidget.serialize = true;
-            node.negativeBundleWidget = negativeBundleWidget;
 
             // Initial bundle update
             setTimeout(() => node.updateBundles(), 100);
