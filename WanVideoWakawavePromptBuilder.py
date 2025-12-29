@@ -76,6 +76,13 @@ class WanVideoWakawavePromptBuilder:
         print("\n" + "="*75)
         print("🌊 WanVideo Wakawave Prompt Builder")
         print("="*75)
+        
+        # Validate segment_number is an integer
+        try:
+            segment_number = int(segment_number)
+        except (ValueError, TypeError):
+            segment_number = 0
+            print(f"⚠️  Invalid segment_number, using default: 0")
 
         # Build positive prompt
         print("\n📝 Building POSITIVE prompt:")
@@ -112,14 +119,17 @@ class WanVideoWakawavePromptBuilder:
             print(f"  📌 Previous {prompt_type}: {prev_prompt[:50]}...")
 
         # Parse the bundle from Wakawave UI
-        if not prompt_bundle or prompt_bundle.strip() == "":
+        if not prompt_bundle or not isinstance(prompt_bundle, str) or prompt_bundle.strip() == "":
             print(f"  ⚠️  No {prompt_type} bundle received from UI")
             return prev_prompt or ""
 
         try:
             prompt_configs = json.loads(prompt_bundle)
+            if not isinstance(prompt_configs, list):
+                print(f"  ❌ {prompt_type} bundle is not a list, got {type(prompt_configs).__name__}")
+                return prev_prompt or ""
             print(f"  📦 Parsed {len(prompt_configs)} {prompt_type} entries from bundle")
-        except json.JSONDecodeError as e:
+        except (json.JSONDecodeError, ValueError) as e:
             print(f"  ❌ Failed to parse {prompt_type} bundle: {e}")
             return prev_prompt or ""
 
@@ -146,15 +156,27 @@ class WanVideoWakawavePromptBuilder:
         # Process each prompt entry
         enabled_count = 0
         for idx, config in enumerate(prompt_configs, 1):
+            # Validate config is a dictionary
+            if not isinstance(config, dict):
+                print(f"    ⚠️  Skipping invalid config (not a dict): {config}")
+                continue
+            
             # Check if enabled
             if not config.get('enabled', True):
                 continue
 
-            text = config.get('text', '').strip()
+            text = config.get('text', '')
+            if not isinstance(text, str):
+                text = str(text) if text is not None else ''
+            text = text.strip()
             if not text:
                 continue
 
-            weight = float(config.get('weight', 1.0))
+            try:
+                weight = float(config.get('weight', 1.0))
+            except (ValueError, TypeError):
+                print(f"    ⚠️  Invalid weight value, using default 1.0")
+                weight = 1.0
 
             # Format with weight if enabled
             if use_weights and weight != 1.0:
@@ -211,7 +233,12 @@ class WanVideoWakawavePromptBuilder:
         segment_map = {}
 
         for config in prompt_configs:
-            text = config.get('text', '').strip()
+            if not isinstance(config, dict):
+                continue
+            text = config.get('text', '')
+            if not isinstance(text, str):
+                text = str(text) if text is not None else ''
+            text = text.strip()
             if not text:
                 continue
 

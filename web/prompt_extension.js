@@ -50,7 +50,6 @@ app.registerExtension({
             }], app);
             node.positiveWidget = positiveWidget.widget;
             node.positiveWidget.serialize = true; // SERIALIZE - Save text directly to workflow
-            // Remove computeSize override to allow vertical resizing with node
 
             // Create NEGATIVE prompt text box
             const negativeWidget = ComfyWidgets.STRING(this, "negative_prompts", ["STRING", {
@@ -59,7 +58,6 @@ app.registerExtension({
             }], app);
             node.negativeWidget = negativeWidget.widget;
             node.negativeWidget.serialize = true; // SERIALIZE - Save text directly to workflow
-            // Remove computeSize override to allow vertical resizing with node
 
             // Create hidden bundle widgets EARLY (so configure can access them)
             // Use same hiding approach as LoRA loader
@@ -249,12 +247,14 @@ app.registerExtension({
                 const positiveText = node.positiveWidget.value;
                 const positiveLines = positiveText.split('\n').filter(l => l.trim());
                 const positivePrompts = positiveLines.map(line => {
+                    line = line.trim();
                     const weightMatch = line.match(/,\s*weight:\s*([\d.]+)\s*$/i);
                     let text = line;
                     let weight = 1.0;
 
                     if (weightMatch) {
-                        weight = parseFloat(weightMatch[1]) || 1.0;
+                        const parsedWeight = parseFloat(weightMatch[1]);
+                        weight = isNaN(parsedWeight) ? 1.0 : parsedWeight;
                         text = line.substring(0, weightMatch.index).trim();
                     }
 
@@ -269,12 +269,14 @@ app.registerExtension({
                 const negativeText = node.negativeWidget.value;
                 const negativeLines = negativeText.split('\n').filter(l => l.trim());
                 const negativePrompts = negativeLines.map(line => {
+                    line = line.trim();
                     const weightMatch = line.match(/,\s*weight:\s*([\d.]+)\s*$/i);
                     let text = line;
                     let weight = 1.0;
 
                     if (weightMatch) {
-                        weight = parseFloat(weightMatch[1]) || 1.0;
+                        const parsedWeight = parseFloat(weightMatch[1]);
+                        weight = isNaN(parsedWeight) ? 1.0 : parsedWeight;
                         text = line.substring(0, weightMatch.index).trim();
                     }
 
@@ -297,18 +299,34 @@ app.registerExtension({
             // Watch for changes in both text widgets
             const originalPositiveCallback = node.positiveWidget.callback;
             node.positiveWidget.callback = function(value) {
-                if (originalPositiveCallback) {
-                    originalPositiveCallback.apply(this, arguments);
+                try {
+                    if (originalPositiveCallback) {
+                        originalPositiveCallback.apply(this, arguments);
+                    }
+                } catch (e) {
+                    console.error("[Wakawave Prompt] Error in original positive callback:", e);
                 }
-                node.updateBundles();
+                try {
+                    node.updateBundles();
+                } catch (e) {
+                    console.error("[Wakawave Prompt] Error updating bundles:", e);
+                }
             };
 
             const originalNegativeCallback = node.negativeWidget.callback;
             node.negativeWidget.callback = function(value) {
-                if (originalNegativeCallback) {
-                    originalNegativeCallback.apply(this, arguments);
+                try {
+                    if (originalNegativeCallback) {
+                        originalNegativeCallback.apply(this, arguments);
+                    }
+                } catch (e) {
+                    console.error("[Wakawave Prompt] Error in original negative callback:", e);
                 }
-                node.updateBundles();
+                try {
+                    node.updateBundles();
+                } catch (e) {
+                    console.error("[Wakawave Prompt] Error updating bundles:", e);
+                }
             };
 
             // Initial bundle update

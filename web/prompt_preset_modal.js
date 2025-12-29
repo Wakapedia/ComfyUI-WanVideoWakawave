@@ -10,6 +10,8 @@ export class PresetModal {
         this.presets = {};
         this.onLoadCallback = null;
         this.searchTerm = "";
+        this.keydownHandler = null;
+        this.dropdownClickHandler = null;
     }
 
     /**
@@ -141,8 +143,9 @@ export class PresetModal {
         // Load dropdown
         this.setupLoadDropdown();
 
-        // Keyboard shortcuts
-        document.addEventListener('keydown', this.handleKeydown.bind(this));
+        // Keyboard shortcuts - store handler for removal later
+        this.keydownHandler = this.handleKeydown.bind(this);
+        document.addEventListener('keydown', this.keydownHandler);
     }
 
     /**
@@ -162,17 +165,30 @@ export class PresetModal {
             dropdown.classList.toggle('open', !isOpen);
         });
 
-        // Close dropdown when clicking outside
-        document.addEventListener('click', () => {
+        // Close dropdown when clicking outside - use instance-specific handler
+        this.dropdownClickHandler = () => {
             dropdown.classList.remove('open');
-        });
+        };
+        document.addEventListener('click', this.dropdownClickHandler);
 
         // Load mode buttons
-        menu.querySelector('[data-action="load-both"]').addEventListener('click', () => this.loadPreset('both'));
-        menu.querySelector('[data-action="load-positive"]').addEventListener('click', () => this.loadPreset('positive'));
-        menu.querySelector('[data-action="load-negative"]').addEventListener('click', () => this.loadPreset('negative'));
-        menu.querySelector('[data-action="append-positive"]').addEventListener('click', () => this.loadPreset('append-positive'));
-        menu.querySelector('[data-action="append-negative"]').addEventListener('click', () => this.loadPreset('append-negative'));
+        const loadButtons = [
+            { selector: '[data-action="load-both"]', mode: 'both' },
+            { selector: '[data-action="load-positive"]', mode: 'positive' },
+            { selector: '[data-action="load-negative"]', mode: 'negative' },
+            { selector: '[data-action="append-positive"]', mode: 'append-positive' },
+            { selector: '[data-action="append-negative"]', mode: 'append-negative' }
+        ];
+
+        loadButtons.forEach(({ selector, mode }) => {
+            const btn = menu.querySelector(selector);
+            if (btn) {
+                btn.addEventListener('click', () => {
+                    this.loadPreset(mode);
+                    dropdown.classList.remove('open'); // Close dropdown after selection
+                });
+            }
+        });
     }
 
     /**
@@ -229,13 +245,23 @@ export class PresetModal {
 
             // Get preview text
             const positivePreview = this.getPresetPreview(preset);
-            const created = preset.created ? new Date(preset.created).toLocaleDateString() : 'Unknown';
-            const usageCount = preset.usageCount || 0;
+            
+            // Safe date parsing
+            let created = 'Unknown';
+            if (preset && preset.created) {
+                try {
+                    created = new Date(preset.created).toLocaleDateString();
+                } catch (e) {
+                    created = 'Invalid date';
+                }
+            }
+            
+            const usageCount = preset && preset.usageCount ? preset.usageCount : 0;
 
             item.innerHTML = `
                 <div class="preset-item-header">
                     <span class="preset-name">${this.escapeHtml(name)}</span>
-                    ${preset.favorite ? '<span class="preset-star">★</span>' : ''}
+                    ${preset && preset.favorite ? '<span class="preset-star">★</span>' : ''}
                 </div>
                 <div class="preset-item-info">
                     <span class="preset-date">📅 ${created}</span>
@@ -255,6 +281,9 @@ export class PresetModal {
      * Get preview text for a preset
      */
     getPresetPreview(preset) {
+        if (!preset) {
+            return '<em>Empty</em>';
+        }
         const positive = typeof preset === 'string' ? preset : (preset.positive || '');
         const preview = positive.substring(0, 60);
         return preview ? this.escapeHtml(preview) + (positive.length > 60 ? '...' : '') : '<em>Empty</em>';
@@ -295,13 +324,33 @@ export class PresetModal {
         }
 
         const preset = this.presets[this.selectedPreset];
+        if (!preset) {
+            previewContainer.innerHTML = `
+                <div class="preview-empty">
+                    Preset not found
+                </div>
+            `;
+            return;
+        }
+
         const positive = typeof preset === 'string' ? preset : (preset.positive || '');
         const negative = typeof preset === 'string' ? '' : (preset.negative || '');
-        const created = preset.created ? new Date(preset.created).toLocaleDateString() : 'Unknown';
-        const modified = preset.modified ? new Date(preset.modified).toLocaleDateString() : created;
+        
+        // Safe date parsing with fallback
+        const parseDate = (dateStr) => {
+            if (!dateStr) return 'Unknown';
+            try {
+                return new Date(dateStr).toLocaleDateString();
+            } catch (e) {
+                return 'Invalid date';
+            }
+        };
+        
+        const created = parseDate(preset.created);
+        const modified = parseDate(preset.modified || preset.created);
         const usageCount = preset.usageCount || 0;
         const description = preset.description || '';
-        const tags = preset.tags || [];
+        const tags = Array.isArray(preset.tags) ? preset.tags : [];
 
         previewContainer.innerHTML = `
             <div class="preview-header">
@@ -312,7 +361,7 @@ export class PresetModal {
 
             ${tags.length > 0 ? `
                 <div class="preview-tags">
-                    ${tags.map(tag => `<span class="tag">${this.escapeHtml(tag)}</span>`).join('')}
+                    ${tags.map(tag => `<span class="tag">${this.escapeHtml(String(tag))}</span>`).join('')}
                 </div>
             ` : ''}
 
@@ -478,27 +527,64 @@ export class PresetModal {
             const file = e.target.files[0];
             if (!file) return;
 
+            // Validate file size (max 10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                alert('File is too large (max 10MB)!');
+                return;
+            }
+
             const reader = new FileReader();
             reader.onload = (event) => {
                 try {
                     const imported = JSON.parse(event.target.result);
 
                     // Validate format
-                    if (typeof imported !== 'object') {
+                    if (typeof imported !== 'object' || imported === null) {
                         alert('Invalid preset file format!');
+                        return;
+                    }
+
+                    // Validate preset structure
+                    const validatedImport = {};
+                    let invalidCount = 0;
+                    
+                    for (const [name, preset] of Object.entries(imported)) {
+                        if (typeof name !== 'string' || !name.trim()) {
+                            invalidCount++;
+                            continue;
+                        }
+                        
+                        // Validate preset has required fields
+                        if (typeof preset === 'string') {
+                            // Old format - single string is valid
+                            validatedImport[name] = preset;
+                        } else if (typeof preset === 'object' && preset !== null) {
+                            // New format - require at least positive or negative
+                            if (preset.positive || preset.negative) {
+                                validatedImport[name] = preset;
+                            } else {
+                                invalidCount++;
+                            }
+                        } else {
+                            invalidCount++;
+                        }
+                    }
+
+                    if (Object.keys(validatedImport).length === 0) {
+                        alert('No valid presets found in file!');
                         return;
                     }
 
                     // Ask merge or replace
                     const mode = confirm(
-                        `Import ${Object.keys(imported).length} preset(s)?\n\n` +
+                        `Import ${Object.keys(validatedImport).length} preset(s)?\n\n` +
                         'Click OK to MERGE with existing presets.\n' +
                         'Click Cancel to REPLACE all presets.'
                     );
 
                     if (mode) {
                         // Merge - ask about conflicts
-                        const conflicts = Object.keys(imported).filter(name => this.presets[name]);
+                        const conflicts = Object.keys(validatedImport).filter(name => this.presets[name]);
                         if (conflicts.length > 0) {
                             const overwrite = confirm(
                                 `${conflicts.length} preset(s) already exist:\n${conflicts.join(', ')}\n\n` +
@@ -507,21 +593,21 @@ export class PresetModal {
                             );
 
                             if (overwrite) {
-                                Object.assign(this.presets, imported);
+                                Object.assign(this.presets, validatedImport);
                             } else {
                                 // Only add new ones
-                                Object.keys(imported).forEach(name => {
+                                Object.keys(validatedImport).forEach(name => {
                                     if (!this.presets[name]) {
-                                        this.presets[name] = imported[name];
+                                        this.presets[name] = validatedImport[name];
                                     }
                                 });
                             }
                         } else {
-                            Object.assign(this.presets, imported);
+                            Object.assign(this.presets, validatedImport);
                         }
                     } else {
                         // Replace all
-                        this.presets = imported;
+                        this.presets = validatedImport;
                     }
 
                     // Save changes to localStorage
@@ -531,10 +617,15 @@ export class PresetModal {
 
                     this.renderPresetList();
                     this.updatePreview();
-                    alert(`Successfully imported ${Object.keys(imported).length} preset(s)!`);
+                    const totalImported = Object.keys(validatedImport).length;
+                    alert(`Successfully imported ${totalImported} preset(s)${invalidCount > 0 ? ` (skipped ${invalidCount} invalid)` : ''}!`);
                 } catch (error) {
                     alert('Failed to import presets: ' + error.message);
                 }
+            };
+
+            reader.onerror = () => {
+                alert('Failed to read file!');
             };
 
             reader.readAsText(file);
@@ -599,7 +690,15 @@ export class PresetModal {
      */
     close() {
         if (this.modal) {
-            document.removeEventListener('keydown', this.handleKeydown);
+            // Remove event listeners to prevent memory leak
+            if (this.keydownHandler) {
+                document.removeEventListener('keydown', this.keydownHandler);
+                this.keydownHandler = null;
+            }
+            if (this.dropdownClickHandler) {
+                document.removeEventListener('click', this.dropdownClickHandler);
+                this.dropdownClickHandler = null;
+            }
             this.modal.remove();
             this.modal = null;
         }
@@ -609,6 +708,9 @@ export class PresetModal {
      * Escape HTML to prevent XSS
      */
     escapeHtml(text) {
+        if (typeof text !== 'string') {
+            text = String(text);
+        }
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;

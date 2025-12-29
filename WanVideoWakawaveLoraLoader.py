@@ -49,7 +49,10 @@ class WanVideoWakawaveLoraLoader:
         # Initialize LoRA list
         lora_list = []
         if prev_lora is not None:
-            lora_list = prev_lora if isinstance(prev_lora, list) else [prev_lora]
+            if isinstance(prev_lora, list):
+                lora_list = prev_lora.copy()
+            elif isinstance(prev_lora, dict):
+                lora_list = [prev_lora]
 
         print("\n" + "="*75)
         print("🌊 WanVideo Wakawave LoRA Loader")
@@ -63,8 +66,11 @@ class WanVideoWakawaveLoraLoader:
                 parsed = json.loads(lora_bundle)
                 if isinstance(parsed, list):
                     lora_configs = parsed
+                elif isinstance(parsed, dict):
+                    print("⚠️  lora_bundle is a dict, converting to list")
+                    lora_configs = list(parsed.values()) if parsed else []
                 else:
-                    print("⚠️  lora_bundle is not a list; ignoring")
+                    print(f"⚠️  lora_bundle has unexpected type: {type(parsed).__name__}")
             except json.JSONDecodeError as e:
                 print(f"⚠️  Failed to parse lora_bundle JSON: {e}")
         else:
@@ -79,6 +85,7 @@ class WanVideoWakawaveLoraLoader:
 
         for idx, config in enumerate(lora_configs):
             if not isinstance(config, dict):
+                print(f"  ⚠️  Skipping invalid config at index {idx} (not a dict)")
                 continue
 
             # Check if enabled
@@ -88,11 +95,19 @@ class WanVideoWakawaveLoraLoader:
 
             # Get LoRA name
             lora_name = config.get('lora', 'None')
-            if not lora_name or lora_name == "None":
+            if not lora_name or lora_name == "None" or not isinstance(lora_name, str):
                 continue
 
             # Get strength
-            strength = float(config.get('strength', config.get('strength_model', 1.0)))
+            try:
+                strength = float(config.get('strength', config.get('strength_model', 1.0)))
+                # Validate strength is in reasonable range
+                if strength <= 0 or strength > 2.0:
+                    print(f"  ⚠️  Strength {strength:.2f} out of range, clamping to 1.0")
+                    strength = max(0.1, min(2.0, strength))
+            except (ValueError, TypeError):
+                print(f"  ⚠️  Invalid strength value, using default 1.0")
+                strength = 1.0
 
             # Build LoRA path using ComfyUI's proper path resolver
             try:

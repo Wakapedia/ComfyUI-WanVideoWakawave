@@ -5,6 +5,20 @@ All notable changes to the ComfyUI-WanVideoWakawave project will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.7] - 2025-12-29
+
+### Fixed
+- **Critical:** Fixed memory leak in preset modal from unreleased event listeners (keyboard and dropdown handlers now properly cleaned up on modal close)
+- Fixed event listener accumulation when opening/closing modal multiple times
+- Fixed keyboard shortcuts (Enter, Delete, Escape) firing on closed modals
+- Improved error handling in Python prompt builder with better type validation for config items
+- Improved error handling in Python LoRA loader with better type validation
+- Enhanced weight parsing in JavaScript with safer NaN detection
+- Added null checks for widget references in preset loading
+- Improved date parsing safety in preset modal preview panel
+- Better error handling for JSON parsing with additional edge case coverage
+- Fixed file import validation in preset modal with file size limits and structure validation
+
 ## [1.0.5] - 2025-12-28
 
 ### Added

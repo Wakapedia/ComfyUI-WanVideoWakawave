@@ -1,0 +1,19 @@
+.github/workflows/publish.yml
+.github/workflows/publish_action.yml
+.gitignore
+CHANGELOG.md
+LICENSE
+README.md
+WanVideoWakawaveLoraLoader.py
+WanVideoWakawavePromptBuilder.py
+__init__.py
+images/Wakawave Add Lora.png
+images/Wakawave LoRA Loader.png
+images/Wakawave-Prompt-loader.png
+images/Wakawave-Prompt-main.png
+pyproject.toml
+web/extension.js
+web/prompt_extension.js
+web/prompt_extension_old.js
+web/prompt_preset_modal.css
+web/prompt_preset_modal.js
