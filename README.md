@@ -6,7 +6,7 @@ Advanced LoRA management and prompt building tools for WanVideo in ComfyUI.
 - 🌊 **Wakawave LoRA Loader** - Dynamic LoRA management with unlimited add/remove
 - 🌊 **Wakawave Prompt Builder** - Advanced prompt creation with segment support
 
-![Wakawave LoRA Loader](images/Wakawave%20LoRA%20Loader.png)
+![Wakawave LoRA Loader](images/Wakawave-LoRA-Loader.png)
 
 ---
 
