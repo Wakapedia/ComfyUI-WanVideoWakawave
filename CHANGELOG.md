@@ -5,6 +5,22 @@ All notable changes to the ComfyUI-WanVideoWakawave project will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Complete File Size Display Feature**
+  - Backend API endpoint `/api/wanvideo/lora/sizes` to fetch LoRA file sizes
+  - Individual file sizes displayed next to each LoRA name in node interface
+  - Total combined size and count displayed in node header (e.g., "3 LoRAs • 1.5GB")
+  - File sizes automatically fetched when:
+    - Adding individual LoRAs to the loader
+    - Loading preset templates
+    - Restoring saved node configurations
+  - Settings toggle to show/hide file sizes: "Show File Sizes" option in ⚙️ Settings menu
+  - File size formatting helper consistent across backend and frontend
+  - Asynchronous batch fetching for optimal performance when loading multiple LoRAs
+  - Graceful fallback if file size data unavailable
+
 ## [1.0.7] - 2025-12-29
 
 ### Fixed

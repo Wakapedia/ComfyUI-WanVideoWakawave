@@ -28,6 +28,79 @@ class WanVideoWakawaveLoraLoader:
     RETURN_NAMES = ("lora",)
     FUNCTION = "load_loras"
 
+    @staticmethod
+    def _format_file_size(size_bytes: int) -> str:
+        """Format bytes to human-readable file size string."""
+        for unit in ['B', 'KB', 'MB', 'GB']:
+            if size_bytes < 1024:
+                return f"{size_bytes:.1f}{unit}"
+            size_bytes /= 1024
+        return f"{size_bytes:.1f}TB"
+
+    @staticmethod
+    def get_lora_file_sizes(lora_names: list) -> dict:
+        """Get file sizes for a list of LoRA names.
+        
+        Uses ComfyUI's folder_names_and_paths which respects extra_model_paths.yaml
+        
+        Args:
+            lora_names: List of LoRA filenames (e.g., ["model.safetensors", "lora.safetensors"])
+            
+        Returns:
+            Dictionary mapping lora_name to file_size in bytes
+        """
+        sizes = {}
+        
+        # Collect all possible loras directories from ComfyUI's configuration
+        loras_dirs = []
+        
+        # Use ComfyUI's folder_names_and_paths which is populated from extra_model_paths.yaml
+        if hasattr(folder_paths, 'folder_names_and_paths') and 'loras' in folder_paths.folder_names_and_paths:
+            paths_tuple = folder_paths.folder_names_and_paths['loras']
+            if isinstance(paths_tuple, (tuple, list)):
+                # Extract the paths list (first element of tuple)
+                paths_list = paths_tuple[0] if isinstance(paths_tuple[0], (list, tuple)) else paths_tuple
+                if isinstance(paths_list, (list, tuple)):
+                    loras_dirs.extend(paths_list)
+        
+        # Fallback to default directory
+        if not loras_dirs:
+            default_loras_dir = os.path.join(folder_paths.models_dir, "loras")
+            if os.path.exists(default_loras_dir):
+                loras_dirs.append(default_loras_dir)
+        
+        # Now search for each lora file in all directories
+        for lora_name in lora_names:
+            if not lora_name or lora_name == "None":
+                continue
+            
+            found = False
+            
+            # First try ComfyUI's built-in path resolver
+            try:
+                lora_path = folder_paths.get_full_path("loras", lora_name)
+                if os.path.isfile(lora_path):
+                    sizes[lora_name] = os.path.getsize(lora_path)
+                    found = True
+            except:
+                pass
+            
+            # If not found, try searching in all collected directories
+            if not found:
+                for loras_dir in loras_dirs:
+                    if os.path.exists(loras_dir):
+                        lora_path = os.path.join(loras_dir, lora_name)
+                        if os.path.isfile(lora_path):
+                            sizes[lora_name] = os.path.getsize(lora_path)
+                            found = True
+                            break
+            
+            # If still not found, set size to 0
+            if not found:
+                sizes[lora_name] = 0
+        
+        return sizes
+
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -128,6 +201,9 @@ class WanVideoWakawaveLoraLoader:
                     continue
 
             if lora_path and os.path.exists(lora_path):
+                # Get file size in bytes
+                file_size = os.path.getsize(lora_path) if os.path.isfile(lora_path) else 0
+                
                 lora_list.append({
                     "path": lora_path,
                     "strength": strength,
@@ -135,10 +211,12 @@ class WanVideoWakawaveLoraLoader:
                     "blocks": {},  # Empty dict - no block filtering
                     "layer_filter": "",  # Empty string - no layer filtering
                     "low_mem_load": False,  # Don't use low mem mode
-                    "merge_loras": False  # Tell WanVideoSetLoRAs not to merge
+                    "merge_loras": False,  # Tell WanVideoSetLoRAs not to merge
+                    "file_size": file_size  # Add file size in bytes
                 })
                 enabled_count += 1
-                print(f"  ✅ {enabled_count}. {lora_name[:60]:60s} @ {strength:.2f}")
+                size_display = self._format_file_size(file_size)
+                print(f"  ✅ {enabled_count}. {lora_name[:50]:50s} @ {strength:.2f} ({size_display})")
             else:
                 print(f"  ⚠️  LoRA not found: {lora_name}")
                 # Try to help debug
@@ -151,7 +229,10 @@ class WanVideoWakawaveLoraLoader:
                         print(f"      Similar files found: {similar[:3]}")
 
         print("="*75)
-        print(f"✅ Total enabled: {enabled_count} LoRAs")
+        # Calculate total size of all loaded LoRAs
+        total_size = sum(item.get("file_size", 0) for item in lora_list)
+        total_size_display = self._format_file_size(total_size)
+        print(f"✅ Total enabled: {enabled_count} LoRAs | Combined size: {total_size_display}")
         print("="*75 + "\n")
 
         return (lora_list,)

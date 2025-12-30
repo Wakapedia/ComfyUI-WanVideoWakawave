@@ -2649,19 +2649,65 @@ class SuperLoraWidget extends SuperLoraBaseWidget {
     const loraMaxRight = (rightMost.length ? Math.min(...rightMost) : rightEdge) - gap;
     const loraWidth = Math.max(100, loraMaxRight - loraLeft);
     const showTriggers = !!(node.properties && node.properties.showTriggerWords);
-    const nameWidth = showTriggers ? Math.max(80, Math.floor(loraWidth * 0.6)) : loraWidth;
-    const trigWidth = showTriggers ? loraWidth - nameWidth : 0;
+    const showFileSize = node?.properties?.showFileSizes !== false;
+    
+    // Measure file size text width dynamically
+    let dynamicFileSizeWidth = 0;
+    let fileSizeText = "";
+    if (showFileSize && this.value.file_size) {
+      fileSizeText = this.formatFileSize(this.value.file_size);
+      ctx.font = "11px 'Segoe UI', Arial, sans-serif";
+      dynamicFileSizeWidth = Math.ceil(ctx.measureText(fileSizeText).width) + 8; // 8px padding
+    }
+    
+    // Calculate column widths
+    let nameWidth, trigWidth, fileSizeWidth;
+    if (showFileSize && showTriggers) {
+      // Three columns: name, triggers, filesize (with dynamic filesize width)
+      fileSizeWidth = Math.max(40, dynamicFileSizeWidth);
+      nameWidth = Math.max(60, Math.floor((loraWidth - fileSizeWidth) * 0.65));
+      trigWidth = loraWidth - nameWidth - fileSizeWidth;
+    } else if (showFileSize) {
+      // Two columns: name, filesize (dynamic width)
+      fileSizeWidth = Math.max(40, dynamicFileSizeWidth);
+      nameWidth = Math.max(80, loraWidth - fileSizeWidth - 4);
+      trigWidth = 0;
+    } else if (showTriggers) {
+      // Two columns: name, triggers
+      nameWidth = Math.max(80, Math.floor(loraWidth * 0.6));
+      fileSizeWidth = 0;
+      trigWidth = loraWidth - nameWidth;
+    } else {
+      // One column: name only
+      nameWidth = loraWidth;
+      fileSizeWidth = 0;
+      trigWidth = 0;
+    }
+    
     ctx.textAlign = "left";
     ctx.font = "12px 'Segoe UI', Arial, sans-serif";
     ctx.fillStyle = this.value.enabled ? "#fff" : "#888";
+    
+    // Draw LoRA name (without file size appended)
     const loraText = this.value.lora === "None" ? "Click to select LoRA..." : this.value.lora;
     const loraDisplay = this.truncateText(ctx, loraText, nameWidth);
     ctx.fillText(loraDisplay, loraLeft, posY + midY);
     this.hitAreas.lora.bounds = [loraLeft, 0, nameWidth, fullHeight];
+    
+    // Draw file size column if enabled
+    if (showFileSize && fileSizeWidth > 0) {
+      const fileSizeLeft = loraLeft + nameWidth + 4;
+      ctx.font = "11px 'Segoe UI', Arial, sans-serif";
+      ctx.fillStyle = this.value.enabled ? "#aaa" : "#666";
+      const fileSizeDisplayText = this.value.file_size ? this.formatFileSize(this.value.file_size) : "—";
+      ctx.textAlign = "left";
+      ctx.fillText(fileSizeDisplayText, fileSizeLeft, posY + midY);
+    }
+    
     const controlsAlpha = this.value.enabled ? 1 : 0.55;
     ctx.save();
     ctx.globalAlpha *= controlsAlpha;
-    const triggerLeft = loraLeft + nameWidth;
+    const triggerLeft = loraLeft + nameWidth + (showFileSize ? fileSizeWidth : 0) + 4;
     if (showTriggers && trigWidth > 0) {
       const hasTrigger = !!(this.value.triggerWords && String(this.value.triggerWords).trim());
       const pillH = 20;
@@ -2907,8 +2953,19 @@ class SuperLoraWidget extends SuperLoraBaseWidget {
     }
     return truncated + "...";
   }
+  formatFileSize(bytes) {
+    if (!bytes || bytes === 0) return "";
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let size = bytes;
+    let unitIndex = 0;
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024;
+      unitIndex++;
+    }
+    return `${size.toFixed(1)}${units[unitIndex]}`;
+  }
   computeSize() {
-    return [450, 50];
+    return [450, 35];
   }
   setLora(lora, node) {
     this.value.lora = lora;
@@ -2916,6 +2973,7 @@ class SuperLoraWidget extends SuperLoraBaseWidget {
     this.value.autoFetched = false;
     this.value = { ...this.value, fetchAttempted: false };
     if (lora !== "None") {
+      this.fetchLoraFileSize(lora);
       try {
         const manual = TriggerWordStore.get(lora);
         if (manual) {
@@ -2928,6 +2986,69 @@ class SuperLoraWidget extends SuperLoraBaseWidget {
       if (node && node?.properties?.autoFetchTriggerWords !== false) {
         this.fetchTriggerWords();
       }
+    }
+  }
+  async fetchLoraFileSize(loraName) {
+    if (loraName === "None" || !loraName) return;
+    
+    try {
+      console.log(`[Wakawave] Fetching file size for LoRA: ${loraName}`);
+      
+      const endpoints = [
+        `/wanvideo/lora/sizes?names=${encodeURIComponent(loraName)}`,
+        `/api/wanvideo/lora/sizes?names=${encodeURIComponent(loraName)}`
+      ];
+      
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`[Wakawave] Attempting endpoint: ${endpoint}`);
+          const response = await fetch(endpoint, { timeout: 5000 });
+          
+          console.log(`[Wakawave] Response status: ${response.status} for ${endpoint}`);
+          
+          if (!response.ok) {
+            console.warn(`[Wakawave] ${endpoint} returned ${response.status}`);
+            continue;
+          }
+          
+          const data = await response.json();
+          console.log(`[Wakawave] API response data:`, data);
+          
+          if (data && typeof data === 'object') {
+            // Check for exact match or any key that matches
+            let fileSize = data[loraName];
+            
+            if (!fileSize) {
+              // Try to find a key that contains or matches the lora name
+              for (const key in data) {
+                if (key.toLowerCase().includes(loraName.toLowerCase()) || 
+                    loraName.toLowerCase().includes(key.toLowerCase())) {
+                  fileSize = data[key];
+                  console.log(`[Wakawave] Found fuzzy match: "${key}" for "${loraName}"`);
+                  break;
+                }
+              }
+            }
+            
+            if (typeof fileSize === 'number' && fileSize > 0) {
+              this.value.file_size = fileSize;
+              const sizeStr = this.formatFileSize(fileSize);
+              console.log(`[Wakawave] ✅ File size for "${loraName}": ${fileSize} bytes (${sizeStr})`);
+              // Force canvas redraw to display the new file size
+              if (this.canvas) {
+                this.canvas.setDirty(true);
+              }
+              return;
+            }
+          }
+        } catch (err) {
+          console.warn(`[Wakawave] Failed to fetch from ${endpoint}: ${err.message}`);
+        }
+      }
+      
+      console.log(`[Wakawave] Could not fetch file size for: ${loraName}`);
+    } catch (err) {
+      console.error(`[Wakawave] Error in fetchLoraFileSize:`, err);
     }
   }
   async fetchTriggerWords() {
@@ -3213,6 +3334,18 @@ class SuperLoraHeaderWidget extends SuperLoraBaseWidget {
         posX += btnWidth + buttonSpacing;
       });
     }
+    const { count: enabledCount, totalSize } = this.getTotalLoraInfo(node);
+    const showFileSize = node?.properties?.showFileSizes !== false;
+    if (enabledCount > 0 && showFileSize) {
+      ctx.save();
+      ctx.font = "bold 14px 'Segoe UI', Arial, sans-serif";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "#4a9eff";
+      ctx.textAlign = "right";
+      const infoText = totalSize > 0 ? `${enabledCount} LoRA${enabledCount === 1 ? "" : "s"} • ${this.formatFileSize(totalSize)}` : `${enabledCount} LoRA${enabledCount === 1 ? "" : "s"}`;
+      ctx.fillText(infoText, w - margin - 5, posY + height - 12);
+      ctx.restore();
+    }
     ctx.restore();
   }
   getAllLorasState(node) {
@@ -3220,8 +3353,34 @@ class SuperLoraHeaderWidget extends SuperLoraBaseWidget {
     const loraWidgets = node.customWidgets.filter((w) => w instanceof SuperLoraWidget);
     return loraWidgets.length > 0 && loraWidgets.every((w) => w.value.enabled);
   }
+  getTotalLoraInfo(node) {
+    if (!node.customWidgets) return { count: 0, totalSize: 0 };
+    const loraWidgets = node.customWidgets.filter((w) => w instanceof SuperLoraWidget);
+    let enabledCount = 0;
+    let totalSize = 0;
+    for (const widget of loraWidgets) {
+      if (widget.value?.enabled) {
+        enabledCount++;
+        if (widget.value?.file_size) {
+          totalSize += widget.value.file_size;
+        }
+      }
+    }
+    return { count: enabledCount, totalSize };
+  }
+  formatFileSize(bytes) {
+    if (!bytes || bytes === 0) return "";
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let size = bytes;
+    let unitIndex = 0;
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024;
+      unitIndex++;
+    }
+    return `${size.toFixed(1)}${units[unitIndex]}`;
+  }
   computeSize() {
-    return [450, 35];
+    return [450, 50];
   }
 }
 const app = window.app;
@@ -3452,11 +3611,14 @@ const _SuperLoraNode = class _SuperLoraNode {
     node.properties.showTriggerWords = node.properties.showTriggerWords !== false;
     node.properties.showSeparateStrengths = node.properties.showSeparateStrengths || false;
     node.properties.autoFetchTriggerWords = node.properties.autoFetchTriggerWords !== false;
+    node.properties.showFileSizes = node.properties.showFileSizes !== false;
     node.customWidgets = node.customWidgets || [];
     node.customWidgets.push(new SuperLoraHeaderWidget());
     const contentHeight = this.computeContentHeight(node);
     node.size = [node.size[0], Math.max(node.size[1], contentHeight)];
     console.log("Super LoRA Loader: Advanced node setup complete");
+    // Fetch file sizes for any LoRAs that might already be loaded
+    setTimeout(() => this.fetchAllLoraFileSizes(node), 100);
   }
   static computeContentHeight(node) {
     const marginDefault = _SuperLoraNode.MARGIN_SMALL;
@@ -3827,6 +3989,18 @@ const _SuperLoraNode = class _SuperLoraNode {
           node.setDirtyCanvas(true, false);
           this.syncExecutionWidgets(node);
         }
+      },
+      {
+        content: `${node.properties.showFileSizes !== false ? "✅" : "❌"} Show File Sizes`,
+        callback: () => {
+          node.properties.showFileSizes = node.properties.showFileSizes === false ? true : false;
+          // Fetch file sizes if enabling and they're not already loaded
+          if (node.properties.showFileSizes) {
+            _SuperLoraNode.fetchAllLoraFileSizes(node);
+          }
+          node.setDirtyCanvas(true, false);
+          this.syncExecutionWidgets(node);
+        }
       }
     ];
     const menuItems = [...coreItems, null, ...showItems];
@@ -4048,6 +4222,53 @@ const _SuperLoraNode = class _SuperLoraNode {
     this.calculateNodeSize(node);
     node.setDirtyCanvas(true, false);
     this.syncExecutionWidgets(node);
+    // Fetch file sizes for all loaded LoRAs
+    this.fetchAllLoraFileSizes(node);
+  }
+  static async fetchAllLoraFileSizes(node) {
+    try {
+      const loraWidgets = node.customWidgets?.filter((w) => w instanceof SuperLoraWidget) || [];
+      const loraNames = loraWidgets
+        .map((w) => w.value?.lora)
+        .filter((name) => name && name !== "None");
+      
+      console.log(`[Wakawave] Fetching sizes for ${loraNames.length} LoRAs:`, loraNames);
+      if (loraNames.length === 0) return;
+      
+      // Try multiple endpoints
+      const endpoints = [
+        `/wanvideo/lora/sizes?names=${loraNames.map(encodeURIComponent).join(',')}`,
+        `/api/wanvideo/lora/sizes?names=${loraNames.map(encodeURIComponent).join(',')}`
+      ];
+      
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`[Wakawave] Trying batch endpoint: ${endpoint}`);
+          const response = await fetch(endpoint);
+          if (response.ok) {
+            const sizes = await response.json();
+            console.log(`[Wakawave] Batch fetch result from ${endpoint}:`, sizes);
+            loraWidgets.forEach((widget) => {
+              if (widget.value?.lora && sizes[widget.value.lora]) {
+                widget.value.file_size = sizes[widget.value.lora];
+                console.log(`[Wakawave] Updated ${widget.value.lora}: ${sizes[widget.value.lora]} bytes`);
+              }
+            });
+            node.setDirtyCanvas(true, false);
+            return;
+          } else {
+            console.log(`[Wakawave] Batch endpoint ${endpoint} returned ${response.status}`);
+          }
+        } catch (err) {
+          console.log(`[Wakawave] Batch endpoint ${endpoint} failed:`, err.message);
+          continue;
+        }
+      }
+      
+      console.log(`[Wakawave] No batch file size endpoints available`);
+    } catch (err) {
+      console.warn("[Wakawave] Failed to fetch LoRA file sizes:", err);
+    }
   }
   /**
    * (THE BRIDGE) Syncs data from custom lora widgets to invisible execution widgets.
@@ -4098,6 +4319,10 @@ const _SuperLoraNode = class _SuperLoraNode {
       if (data.properties) {
         Object.assign(node.properties, JSON.parse(JSON.stringify(data.properties)));
       }
+      // Ensure showFileSizes is set
+      if (node.properties.showFileSizes === undefined) {
+        node.properties.showFileSizes = true;
+      }
       const restoredWidgets = [];
       if (Array.isArray(data.widgets)) {
         for (const widgetData of data.widgets) {
@@ -4120,6 +4345,9 @@ const _SuperLoraNode = class _SuperLoraNode {
         }
       }
       node.customWidgets = restoredWidgets.length ? restoredWidgets : [new SuperLoraHeaderWidget()];
+      // Fetch file sizes after loading widgets
+      console.log("[Wakawave] Deserializing node, fetching file sizes...");
+      _SuperLoraNode.fetchAllLoraFileSizes(node);
     } catch (error) {
       console.warn("SuperLoRA: Failed to restore custom widgets, resetting defaults", error);
       node.customWidgets = [new SuperLoraHeaderWidget()];

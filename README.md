@@ -19,6 +19,7 @@ Advanced LoRA management and prompt building tools for WanVideo in ComfyUI.
 - ✅ **Per-LoRA Strength** - Individual strength control for each LoRA
 - ✅ **Enable/Disable Toggle** - Test different combinations quickly
 - ✅ **Chainable** - Connect multiple loaders together
+- ✅ **File Size Display** - Shows individual LoRA file sizes next to each name and total combined size in header
 - ✅ **Compatible with WanVideo** - Outputs WANVIDLORA format
 
 ### Wakawave Prompt Builder
