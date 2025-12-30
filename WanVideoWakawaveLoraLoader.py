@@ -6,7 +6,7 @@ Adapted from ND Super Nodes UI, outputs WANVIDLORA for WanVideo
 
 import os
 import json
-import folder_paths
+import folder_paths  # type: ignore
 from pathlib import Path
 from typing import Union, Dict, Any, Tuple, List
 
