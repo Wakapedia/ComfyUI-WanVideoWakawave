@@ -20,6 +20,12 @@ Advanced LoRA management and prompt building tools for WanVideo in ComfyUI.
 - ✅ **Enable/Disable Toggle** - Test different combinations quickly
 - ✅ **Chainable** - Connect multiple loaders together
 - ✅ **File Size Display** - Shows individual LoRA file sizes next to each name and total combined size in header
+  - Displays in node interface as a separate column
+  - Shows total in header (e.g., "8 LoRAs • 6.9GB")
+  - Displays in console output during execution
+  - Toggle on/off with "Show File Sizes" setting
+- ✅ **Smart Directory Scanning** - Detects all LoRA paths from `extra_model_paths.yaml`
+- ✅ **Server-Side Caching** - Caches all file sizes on startup for instant display
 - ✅ **Compatible with WanVideo** - Outputs WANVIDLORA format
 
 ### Wakawave Prompt Builder
@@ -35,7 +41,7 @@ Advanced LoRA management and prompt building tools for WanVideo in ComfyUI.
 
 ## 📦 Installation
 
-### Method 1: ComfyUI Manager (currently not implimented)
+### Method 1: ComfyUI Manager (currently not implemented)
 1. Open ComfyUI Manager
 2. Search for "WanVideo Wakawave"
 3. Click Install
@@ -77,6 +83,24 @@ git clone https://github.com/Wakapedia/ComfyUI-WanVideoWakawave.git
 **Chaining Multiple Loaders:**
 ```
 [LoRA Loader 1] → prev_lora → [LoRA Loader 2] → WanVideo Set LoRAs
+```
+
+**File Size Display:**
+- Shows individual LoRA file sizes in a dedicated column (e.g., "1.3GB", "292.6MB")
+- Column width dynamically adjusts based on text length
+- Header displays total count and combined size (e.g., "8 LoRAs • 6.9GB")
+- Toggle visibility with **"Show File Sizes"** in node settings
+- Sizes are cached on server startup for instant display (no latency)
+
+**Example Console Output:**
+```
+🌊 WanVideo Wakawave LoRA Loader
+===============================================
+  ✅ 1. WanAnimate_relight_lora_fp16.safetensors @ 1.00 (1.3GB)
+  ✅ 2. lightx2v_I2V_14B_480p_cfg_step_distill_rank256_bf16 @ 1.00 (2.7GB)
+  ✅ 3. amateur_nudes_high_noise.safetensors @ 0.70 (292.6MB)
+===============================================
+✅ Total enabled: 3 LoRAs | Combined size: 4.3GB
 ```
 
 ### Wakawave Prompt Builder
@@ -187,6 +211,45 @@ Example segment prompts:
 
 ## ⚙️ Settings
 
+### File Size Display & Caching
+
+**Node Setting:**
+- **"Show File Sizes"** - Toggle to show/hide file sizes in the node interface and header
+
+**Server-Side Caching:**
+- All LoRA file sizes are automatically scanned and cached when ComfyUI starts
+- Scans all directories configured in `extra_model_paths.yaml` (not just the default `models/loras`)
+- Provides instant file size display with zero latency
+- Cache is stored in memory throughout the server session
+
+**Verbose Cache Output (Optional):**
+
+By default, the startup cache only shows a summary like:
+```
+[Wakawave] Scanning all configured LoRAs directories...
+[Wakawave] Found LoRAs directory (from folder_names_and_paths): <your-comfyui-path>\models\loras
+[Wakawave] Found LoRAs directory (from folder_names_and_paths): <extra-model-path>\loras
+[Wakawave] Will scan 2 LoRAs director(ies)
+[Wakawave] ✅ Cached 185 LoRA file sizes from 2 director(ies)
+```
+
+To see **every cached file** on startup, edit `__init__.py`:
+```python
+# Set to True to show individual file caching during startup
+WAKAWAVE_CACHE_VERBOSE = False  # Change to True for verbose output
+```
+
+When enabled, you'll see:
+```
+[Wakawave] Scanning: <your-comfyui-path>\models\loras
+[Wakawave]   Cached: 'model1.safetensors' = 1326751208 bytes (1.24GB)
+[Wakawave]   Cached: 'model2.safetensors' = 2929000000 bytes (2.73GB)
+[Wakawave] Scanning: <extra-model-path>\loras
+[Wakawave]   Cached: 'model3.safetensors' = 322519480 bytes (307.58MB)
+...
+[Wakawave] ✅ Cached 185 LoRA file sizes from 2 director(ies)
+```
+
 ### LoRA Loader Settings
 - **prev_lora** (optional): Connect another LoRA loader to chain
 - Hidden parameter: `lora_bundle` (JSON, managed by UI)
@@ -207,6 +270,10 @@ Example segment prompts:
 - Order matters - earlier LoRAs have more influence
 - Use presets to save working combinations
 - Disable LoRAs to A/B test their impact
+- **File Sizes:** Check the file size display to monitor VRAM usage
+  - Larger LoRAs (500MB+) may require more VRAM
+  - Use the combined total to plan your system resource allocation
+  - File sizes are cached on startup for quick reference
 
 ### Prompt Tips:
 - **Main subject**: Weight 1.1-1.3
@@ -248,6 +315,22 @@ Found a bug or have a feature request?
 ---
 
 ## 🔄 Changelog
+
+### v1.1.0 (Current)
+- 🎉 **File Size Display** - Shows individual LoRA sizes in node interface as separate column
+- 🎉 **Smart Directory Scanning** - Auto-detects all LoRA paths from `extra_model_paths.yaml`
+- 🎉 **Server-Side Caching** - All file sizes cached on startup for instant display (zero latency)
+- 🎉 **Dynamic Column Width** - File size column auto-sizes based on text length
+- 🎉 **Header Summary** - Prominent display of total LoRAs and combined size (e.g., "8 LoRAs • 6.9GB")
+- 🎉 **Verbose Toggle** - Optional `WAKAWAVE_CACHE_VERBOSE` setting to show per-file caching
+- 🎉 **Console Output** - File sizes now display in console during execution
+- ✅ **Toggle Setting** - "Show File Sizes" option to hide/show in node interface
+- ✅ **UI Improvements** - Reduced widget height and optimized layout
+- ✅ **API Endpoint** - GET `/wanvideo/lora/sizes` for file size queries
+- ✅ **Fallback Support** - Automatically calculates sizes if not in cache
+
+### v1.0.5
+- Previous stable release
 
 ### v1.0.0 (Initial Release)
 - 🌊 Wakawave LoRA Loader with unlimited LoRAs
