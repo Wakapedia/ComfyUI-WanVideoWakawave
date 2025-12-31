@@ -98,9 +98,9 @@ git clone https://github.com/Wakapedia/ComfyUI-WanVideoWakawave.git
 ===============================================
   ✅ 1. WanAnimate_relight_lora_fp16.safetensors @ 1.00 (1.3GB)
   ✅ 2. lightx2v_I2V_14B_480p_cfg_step_distill_rank256_bf16 @ 1.00 (2.7GB)
-  ✅ 3. amateur_nudes_high_noise.safetensors @ 0.70 (292.6MB)
+  ✅ 3. boreal-v2.safetensors @ 0.70 (164.0MB)
 ===============================================
-✅ Total enabled: 3 LoRAs | Combined size: 4.3GB
+✅ Total enabled: 3 LoRAs | Combined size: 4.16GB
 ```
 
 ### Wakawave Prompt Builder
